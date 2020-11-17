@@ -7,6 +7,8 @@
 #include <netinet/in.h>
 #include <string>
 
+#include "request_handler.h"
+
 #define PORT 8080
 #define MAX_QUEUE 10
 #define BUFFER_SIZE 30000
@@ -24,6 +26,8 @@ private:
     struct sockaddr_in address;
     int addr_len = sizeof(address);
 
+    RequestHandler *handler;
+
     char *hello = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
 
     void initAddress();
@@ -31,8 +35,6 @@ private:
     void bindSocket();
     void listenSocket();
     bool acceptConnection();
-
-    
     
 };
 

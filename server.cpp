@@ -3,6 +3,7 @@
 #include <iostream>
 
 HTTPServer::HTTPServer(const std::string& root_dir) : root_dir(root_dir) {
+    handler = new RequestHandler(root_dir);
     initAddress();
     createSocket();
     bindSocket();
@@ -53,12 +54,15 @@ void HTTPServer::start() {
     long read_len;
     char buffer[BUFFER_SIZE] = {0};
     while (1) {
-        printf("------------------Wait for connection-------------------\n");
+        std::cout << "------------------Wait for connection-------------------\n";
         if (acceptConnection()) {
-            read_len = read(conn_fd , buffer, 30000);
-            printf("%s\n",buffer );
+            read_len = read(conn_fd , buffer, BUFFER_SIZE);
+            std::string request;
+            request.assign(buffer, read_len);
+            handler->getResponse(request);
+            // printf("%s\n",buffer );
             write(conn_fd , hello , strlen(hello));
-            printf("------------------Hello message sent-------------------\n");
+            std::cout << "------------------Hello message sent-------------------\n";
             close(conn_fd);
         }
     }
