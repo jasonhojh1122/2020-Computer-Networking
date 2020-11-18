@@ -36,7 +36,7 @@ private:
     void        parseRequest(std::string& request, std::vector<std::string>& parsed_request, HTTPMethod& method, std::string& file_name);
     FileType    getFileType(std::string& file_name);
     void        getFile(std::string file_name, std::string& fileData, FileType& file_type, StatusCode& status_code);
-    void        getResponseHeader(FileType file_type, StatusCode status_code, std::string& header);
+    std::string getResponseMessage(StatusCode status_code, FileType file_type, std::string& file_data);
 };
 
 #endif

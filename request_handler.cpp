@@ -20,9 +20,7 @@ std::string RequestHandler::getResponse(std::string& request) {
     std::string file_data;
     getFile(file_name, file_data, file_type, status_code);
 
-    std::string header;
-    getResponseHeader(file_type, status_code, header);
-    return "abc";
+    return getResponseMessage(status_code, file_type, file_data);
 }
 
 void RequestHandler::parseRequest(  std::string& request, 
@@ -84,12 +82,45 @@ void RequestHandler::getFile(   std::string     file_name,
     }
     else {
         status_code = STATUS_NOT_FOUND;
+        file_type = TYPE_HTML;
         openmode = std::ios::in;
-        ifs.open("404.html", openmode);
+        file_dir = root_dir + "/404.html";
+        ifs.open(file_dir, openmode);
     }
     file_data.assign(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>() );
 }
 
-void RequestHandler::getResponseHeader(FileType file_type, StatusCode status_code, std::string& header) {
+std::string RequestHandler::getResponseMessage(StatusCode status_code, FileType file_type, std::string& file_data) {
     std::stringstream ss;
+    ss << "HTTP/1.1 ";
+    if (status_code == STATUS_OK)
+        ss << "200 OK\r\n";
+    else if (status_code == STATUS_NOT_FOUND)
+        ss << "404 NOT FOUND\r\n";
+    
+    ss << "Content-Type: ";
+    switch (file_type) {
+        case TYPE_HTML:
+            ss << "text/html\r\n";
+            break;
+        case TYPE_JPEG:
+            ss << "image/jpeg\r\n";
+            break;
+        case TYPE_JPG:
+            ss << "image/jpg\r\n";
+            break;
+        case TYPE_PNG:
+            ss << "image/png\r\n";
+            break;
+        case TYPE_UNDEFINED:
+            ss << "application/x-binary\r\n";
+    }
+
+    ss << "Content-Length: " << file_data.length() << "\r\n";
+    
+    ss << "\r\n";
+
+    ss << file_data << "\r\n";
+
+    return ss.str();
 }

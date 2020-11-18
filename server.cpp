@@ -59,9 +59,8 @@ void HTTPServer::start() {
             read_len = read(conn_fd , buffer, BUFFER_SIZE);
             std::string request;
             request.assign(buffer, read_len);
-            handler->getResponse(request);
-            // printf("%s\n",buffer );
-            write(conn_fd , hello , strlen(hello));
+            std::string response = handler->getResponse(request);
+            write(conn_fd , response.c_str() , response.length());
             std::cout << "------------------Hello message sent-------------------\n";
             close(conn_fd);
         }
