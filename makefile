@@ -1,12 +1,13 @@
 CC=g++
-CFLAGS=-Wall -std=c++17 -O2
+CPPFLAGS=-Wall -std=c++17 -O2
+LDFLAGS=-pthread
 
 server:
-	$(CC) $(CFLAGS) server.cpp main.cpp request_handler.cpp -o main
+	$(CC) $(CPPFLAGS) server.cpp main.cpp request_handler.cpp -o main
 
 all:
-	$(CC) $(CFLAGS) server.cpp main.cpp request_handler.cpp -o main
-	$(CC) $(CFLAGS) client.cpp -o client
+	$(CC) $(CPPFLAGS) server.cpp main.cpp request_handler.cpp -o main
+	$(CC) $(CPPFLAGS) client.cpp -o client
 
 clean:
 	rm -f client main

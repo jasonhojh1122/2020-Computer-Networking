@@ -42,7 +42,7 @@ void HTTPServer::listenSocket() {
     return;
 }
 
-bool HTTPServer::acceptConnection() {
+bool HTTPServer::acceptConnection(int& conn_fd) {
     if ((conn_fd = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addr_len)) < 0) {
         std::cerr << "Failed to accept new connection.";
         exit(EXIT_FAILURE);
@@ -55,7 +55,8 @@ void HTTPServer::start() {
     char buffer[BUFFER_SIZE] = {0};
     while (1) {
         std::cout << "------------------Wait for connection-------------------\n";
-        if (acceptConnection()) {
+        int conn_fd;
+        if (acceptConnection(conn_fd)) {
             read_len = read(conn_fd , buffer, BUFFER_SIZE);
             std::string request;
             request.assign(buffer, read_len);
