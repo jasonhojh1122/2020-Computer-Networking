@@ -1,8 +1,21 @@
 #include "server.h"
+#include <sstream>
+#include <cstdlib>
 
-#define ROOT "./web"
+const char* root_dir = "./web";
 
 int main(int argc, char const *argv[]) {
-    HTTPServer httpServer = {ROOT};
+    if (argc != 2) {
+        throw std::runtime_error("Please specify the server port to listen on.");
+        exit(EXIT_FAILURE);
+    }
+    std::stringstream ss;
+    ss << argv[1];
+    int port;
+    ss >> port;
+
+
+    HTTPServer httpServer = {port};
     httpServer.start();
+    return 0;
 }

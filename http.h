@@ -22,18 +22,21 @@ enum FileType {
     TYPE_UNDEFINED
 };
 
-struct HTTPRequest{
+struct HTTPRequest {
     std::vector<std::string>    parsed_request;
-    StatusCode                  status_code;
     HTTPMethod                  http_method;
-    FileType                    file_type;
     std::string                 file_name;
+};
+
+struct HTTPResponse {
+    StatusCode                  status_code;
+    FileType                    file_type;
+    std::string                 file_data;
 };
 
 void        response_thread(int conn_fd, std::string request);
 void        parseHttpRequest(std::string& request, HTTPRequest& http_request);
-void        parseFileRequest(HTTPRequest& http_request);
 FileType    getFileType(std::string& file_name);
-void        getFile(std::string file_name, std::string& fileData, FileType& file_type, StatusCode& status_code);
-std::string getResponseMessage(StatusCode status_code, FileType file_type, std::string& file_data);
+void        getFile(std::string& file_name, HTTPResponse& http_response);
+void        getResponseMessage(HTTPResponse& http_response, std::string& message);
 }

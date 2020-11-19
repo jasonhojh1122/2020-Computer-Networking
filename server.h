@@ -7,25 +7,28 @@
 #include <netinet/in.h>
 #include <string>
 
-#include "request_handler.h"
+// #include "request_handler.h"
+#include "thread_pool.h"
 
-#define PORT 8080
 #define MAX_QUEUE 10
 #define BUFFER_SIZE 4096
 
+extern const char* root_dir;
+
 class HTTPServer {
 public:
-    HTTPServer(const std::string& root_dir);
+    HTTPServer(int port);
     void start();
 
 private:
-    const std::string root_dir;
+    int port;
     int server_fd;
     int max_queue;
     struct sockaddr_in address;
     int addr_len = sizeof(address);
 
-    RequestHandler *handler;
+    // RequestHandler *handler;
+    tp::ThreadPool* thread_pool;
 
     void initAddress();
     void createSocket();
