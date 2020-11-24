@@ -11,7 +11,7 @@
 #include "thread_pool.h"
 
 #define MAX_QUEUE 10
-#define BUFFER_SIZE 4096
+#define BUFFER_SIZE 1024
 
 extern const char* root_dir;
 
@@ -24,8 +24,8 @@ private:
     int port;
     int server_fd;
     int max_queue;
-    struct sockaddr_in address;
-    int addr_len = sizeof(address);
+    struct sockaddr_in server_address, client_address;
+    int addr_len = sizeof(client_address);
 
     // RequestHandler *handler;
     tp::ThreadPool* thread_pool;

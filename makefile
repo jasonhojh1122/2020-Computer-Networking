@@ -1,6 +1,6 @@
 CC=g++
 CPPFLAGS=-Wall -std=c++17 -O2
-LDFLAGS=-pthread
+LDFLAGS=-pthread -pedantic
 
 server:
 	$(CC) $(CPPFLAGS) $(LDFLAGS) main.cpp server.cpp http.cpp -o main

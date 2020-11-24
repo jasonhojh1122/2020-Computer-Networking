@@ -38,5 +38,6 @@ void        response_thread(int conn_fd, std::string request);
 void        parseHttpRequest(std::string& request, HTTPRequest& http_request);
 FileType    getFileType(std::string& file_name);
 void        getFile(std::string& file_name, HTTPResponse& http_response);
-void        getResponseMessage(HTTPResponse& http_response, std::string& message);
+void        getResponseHeader(HTTPResponse& http_response, std::string& message);
+
 }

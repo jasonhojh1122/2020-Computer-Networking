@@ -70,11 +70,17 @@ void getFile(std::string& file_name, HTTPResponse& http_response) {
         ifs.open(file_dir, openmode);
     }
 
+    if (!ifs.is_open()) {
+        throw std::runtime_error("Failed to open file");
+        exit(EXIT_FAILURE);
+    }
+
     http_response.file_type = file_type;
     http_response.file_data.assign(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>() );
+    ifs.close();
 }
 
-void getResponseMessage(HTTPResponse& http_response, std::string& message) {
+void getResponseHeader(HTTPResponse& http_response, std::string& message) {
     std::stringstream ss;
     ss << "HTTP/1.1 ";
     if (http_response.status_code == STATUS_OK)
@@ -102,9 +108,9 @@ void getResponseMessage(HTTPResponse& http_response, std::string& message) {
 
     ss << "Content-Length: " << http_response.file_data.length() << "\r\n";
     
+    ss << "Connection: close\r\n";
+    
     ss << "\r\n";
-
-    ss << http_response.file_data << "\r\n";
 
     message = ss.str();
 }
