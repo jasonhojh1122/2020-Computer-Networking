@@ -1,10 +1,17 @@
 #include <string>
 #include <vector>
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <exception>
 
 namespace http {
 
+static std::string HTTP_ERROR_FOLDER = "/http_error";
+
 enum StatusCode {
     STATUS_OK,
+    STATUS_FORBIDDEN,
     STATUS_NOT_FOUND
 };
 
@@ -37,7 +44,8 @@ struct HTTPResponse {
 void        response_thread(int conn_fd, std::string request);
 void        parseHttpRequest(std::string& request, HTTPRequest& http_request);
 FileType    getFileType(std::string& file_name);
-void        getFile(std::string& file_name, HTTPResponse& http_response);
+bool        readFile(std::string& file_name, std::ios::openmode openmode, std::string& file_data);
+void        getHTTPResponse(std::string& file_name, HTTPResponse& http_response);
 void        getResponseHeader(HTTPResponse& http_response, std::string& message);
-
+bool        isUsingParentDirectory(std::string& file_name);
 }

@@ -2,7 +2,7 @@
 #include <sstream>
 #include <cstdlib>
 
-const char* root_dir = "./web";
+const char* ROOT_DIR = "./web";
 
 int main(int argc, char const *argv[]) {
     if (argc != 2) {

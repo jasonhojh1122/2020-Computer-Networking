@@ -1,14 +1,8 @@
 #include "http.h"
-#include <string>
-#include <sstream>
-#include <fstream>
-#include <iostream>
 
-extern const char* root_dir;
+extern const char* ROOT_DIR;
 
-namespace http {
-
-void parseHttpRequest(std::string& request, HTTPRequest& http_request) {
+void http::parseHttpRequest(std::string& request, HTTPRequest& http_request) {
 
     std::string tmp;
     std::stringstream header(request);
@@ -30,7 +24,7 @@ void parseHttpRequest(std::string& request, HTTPRequest& http_request) {
     std::getline(ss, http_request.file_name, ' ');
 }
 
-FileType getFileType(std::string& file_name) {
+http::FileType http::getFileType(std::string& file_name) {
     std::string tmp;
     std::stringstream ss(file_name);
     while (std::getline(ss, tmp, '.')) {
@@ -47,7 +41,7 @@ FileType getFileType(std::string& file_name) {
     else return TYPE_UNDEFINED;
 }
 
-bool isUsingParentDirectory(std::string& file_name) {
+bool http::isUsingParentDirectory(std::string& file_name) {
     std::string tmp;
     std::stringstream ss(file_name);
     while (std::getline(ss, tmp, '/')) {
@@ -58,49 +52,62 @@ bool isUsingParentDirectory(std::string& file_name) {
     return false;
 }
 
-void getFile(std::string& file_name, HTTPResponse& http_response) {
-    FileType file_type = getFileType(file_name);
-
-    std::ios::openmode openmode;
-    if (file_type == TYPE_HTML)
-        openmode = std::ios::in;
-    else
-        openmode = std::ios::in & std::ios::binary;
-
-    std::string file_dir = root_dir + file_name;
-
-    bool failure = false;
+bool http::readFile(std::string& file_name, std::ios::openmode openmode, std::string& file_data) {   
     std::ifstream ifs;
-
+    ifs.exceptions(std::ifstream::failbit | std::ifstream::badbit);
     try {
-        ifs.open(file_dir, openmode);
+        file_data.clear();
+        ifs.open(file_name, openmode);
+        file_data.assign(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
+        ifs.close();
+        return true;
     }
-    catch (...) {
-        failure = true;
+    catch (std::ifstream::failure e) {
+        return false;
     }
-    
-    if (failure == false && !isUsingParentDirectory(file_name)) {
-        http_response.status_code = STATUS_OK;
-    }
-    else {
-        http_response.status_code = STATUS_NOT_FOUND;
-        file_type = TYPE_HTML;
-        openmode = std::ios::in;
-        file_dir = root_dir + std::string("/404.html");
-        ifs.open(file_dir, openmode);
-    }
-
-    if (!ifs.is_open()) {
-        throw std::runtime_error("Failed to open file");
-        exit(EXIT_FAILURE);
-    }
-
-    http_response.file_type = file_type;
-    http_response.file_data.assign(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>() );
-    ifs.close();
 }
 
-void getResponseHeader(HTTPResponse& http_response, std::string& message) {
+void http::getHTTPResponse(std::string& file_name, HTTPResponse& http_response) {
+
+    std::string file_dir;
+    FileType file_type;
+    StatusCode status_code;
+
+    bool forbidden = isUsingParentDirectory(file_name);
+    if (forbidden) {
+        file_dir = ROOT_DIR + HTTP_ERROR_FOLDER + std::string("/403.html");
+        http_response.file_type = TYPE_HTML;
+        http_response.status_code = STATUS_FORBIDDEN;
+        readFile(file_dir, std::ios::in, http_response.file_data);
+        return;
+    }
+    else {
+        file_type = getFileType(file_name);
+        std::ios::openmode openmode;
+        if (file_type == TYPE_HTML) {
+            openmode = std::ios::in;
+        }
+        else {
+            openmode = std::ios::in & std::ios::binary;
+        }
+
+        file_dir = ROOT_DIR + file_name;
+
+        if (readFile(file_dir, openmode, http_response.file_data)) {
+            http_response.file_type = file_type;
+            http_response.status_code = STATUS_OK;
+        }
+        else {
+            file_dir = ROOT_DIR + HTTP_ERROR_FOLDER + std::string("/404.html");
+            http_response.file_type = TYPE_HTML;
+            http_response.status_code = STATUS_NOT_FOUND;
+            readFile(file_dir, std::ios::in, http_response.file_data);
+        }
+        return;
+    }
+}
+
+void http::getResponseHeader(HTTPResponse& http_response, std::string& message) {
     std::stringstream ss;
     ss << "HTTP/1.1 ";
     if (http_response.status_code == STATUS_OK)
@@ -133,6 +140,4 @@ void getResponseHeader(HTTPResponse& http_response, std::string& message) {
     ss << "\r\n";
 
     message = ss.str();
-}
-
 }

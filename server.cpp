@@ -8,7 +8,7 @@ void response_thread(int conn_fd, std::string request) {
     http::HTTPResponse http_response = {};
     http::parseHttpRequest(request, http_request);
 
-    http::getFile(http_request.file_name, http_response);
+    http::getHTTPResponse(http_request.file_name, http_response);
 
     std::string message;
     http::getResponseHeader(http_response, message);
