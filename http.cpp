@@ -47,6 +47,17 @@ FileType getFileType(std::string& file_name) {
     else return TYPE_UNDEFINED;
 }
 
+bool isUsingParentDirectory(std::string& file_name) {
+    std::string tmp;
+    std::stringstream ss(file_name);
+    while (std::getline(ss, tmp, '/')) {
+        if (tmp.compare("..") == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void getFile(std::string& file_name, HTTPResponse& http_response) {
     FileType file_type = getFileType(file_name);
 
@@ -57,9 +68,18 @@ void getFile(std::string& file_name, HTTPResponse& http_response) {
         openmode = std::ios::in & std::ios::binary;
 
     std::string file_dir = root_dir + file_name;
-    std::ifstream ifs(file_dir, openmode);
+
+    bool failure = false;
+    std::ifstream ifs;
+
+    try {
+        ifs.open(file_dir, openmode);
+    }
+    catch (int e) {
+        failure = true;
+    }
     
-    if (ifs.is_open()) {
+    if (failure == false && !isUsingParentDirectory(file_name)) {
         http_response.status_code = STATUS_OK;
     }
     else {
