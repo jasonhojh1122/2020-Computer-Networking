@@ -75,7 +75,7 @@ void getFile(std::string& file_name, HTTPResponse& http_response) {
     try {
         ifs.open(file_dir, openmode);
     }
-    catch (int e) {
+    catch (...) {
         failure = true;
     }
     
