@@ -70,8 +70,6 @@ bool http::readFile(std::string& file_name, std::ios::openmode openmode, std::st
 void http::getHTTPResponse(std::string& file_name, HTTPResponse& http_response) {
 
     std::string file_dir;
-    FileType file_type;
-    StatusCode status_code;
 
     bool forbidden = isUsingParentDirectory(file_name);
     if (forbidden) {
@@ -82,6 +80,7 @@ void http::getHTTPResponse(std::string& file_name, HTTPResponse& http_response) 
         return;
     }
     else {
+        FileType file_type;
         file_type = getFileType(file_name);
         std::ios::openmode openmode;
         if (file_type == TYPE_HTML) {

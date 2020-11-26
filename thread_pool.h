@@ -4,6 +4,7 @@
 #include <condition_variable>
 #include <atomic>
 #include <functional>
+#include <iostream>
 
 namespace tp {
 
@@ -79,6 +80,7 @@ public:
             for (unsigned int i = 0; i < thread_count; ++i) {
                 workers.push_back(std::thread(&ThreadPool::work, this));
             }
+            std::cout << "Number of threads in thread pool: " << thread_count << "\n";
         }
         catch(...) {
             done = true;
@@ -88,7 +90,7 @@ public:
     
     ~ThreadPool() {
         done = true;
-        for (int i = 0; i < workers.size(); ++i) {
+        for (unsigned int i = 0; i < workers.size(); ++i) {
             if (workers[i].joinable())
                 workers[i].join();
         }

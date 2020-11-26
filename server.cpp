@@ -3,6 +3,18 @@
 #include "http.h"
 #include <iostream>
 
+void sendAll(int conn_fd, std::string& message) {
+    char *ptr = message.data();
+    int len = message.length();
+    while (len > 0) {
+        int sent_len;
+        sent_len = send(conn_fd, ptr, len, 0);
+        ptr += sent_len;
+        len -= sent_len;
+    }
+    return;
+}
+
 void response_thread(int conn_fd, std::string request) {
     http::HTTPRequest http_request = {};
     http::HTTPResponse http_response = {};
@@ -13,8 +25,10 @@ void response_thread(int conn_fd, std::string request) {
     std::string message;
     http::getResponseHeader(http_response, message);
 
-    write(conn_fd , message.c_str() , message.length());
-    write(conn_fd , http_response.file_data.c_str() , http_response.file_data.length());
+    sendAll(conn_fd, message);
+    sendAll(conn_fd, http_response.file_data);
+    // write(conn_fd , message.c_str() , message.length());
+    // write(conn_fd , http_response.file_data.c_str() , http_response.file_data.length());
     close(conn_fd);
 }
 
@@ -64,7 +78,6 @@ bool HTTPServer::acceptConnection(int& conn_fd) {
         std::cerr << "Failed to accept new connection.";
         exit(EXIT_FAILURE);
     }
-    std::cout << "FD: " << conn_fd << '\n';
     return true;
 }
 
@@ -73,8 +86,11 @@ void HTTPServer::start() {
     int conn_fd;
     std::string request;
     char *buffer = new char[BUFFER_SIZE];
+    std::cout << "Listening on port: " << port << "\n";
     while (1) {
+        #ifdef VERBOSE
         std::cout << "------------------Wait for connection-------------------\n";
+        #endif
         if (acceptConnection(conn_fd)) {
             read_len = recv(conn_fd , buffer, BUFFER_SIZE, 0);
             if (read_len == 0) {
@@ -83,14 +99,10 @@ void HTTPServer::start() {
             }
             request.clear();
             request.assign(buffer, read_len);
+            #ifdef VERBOSE
             std::cout << request << '\n';
+            #endif
             thread_pool->submit(std::bind(&response_thread, conn_fd, request));
-            /*
-            request.assign(buffer, read_len);
-            std::string response = handler->getResponse(request);
-            write(conn_fd , response.c_str() , response.length());
-            close(conn_fd);
-            */
         }
     }
     delete []buffer;
