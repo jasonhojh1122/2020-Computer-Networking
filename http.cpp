@@ -62,7 +62,10 @@ bool http::readFile(std::string& file_name, std::ios::openmode openmode, std::st
         ifs.close();
         return true;
     }
-    catch (std::ifstream::failure e) {
+    catch (std::ifstream::failure& e) {
+        #ifdef VERBOSE
+        std::cout << "Read file error: " << e.what() << "\n";
+        #endif
         return false;
     }
 }
