@@ -25,6 +25,7 @@ extern const char* root_dir;
 class HTTPServer {
 public:
     HTTPServer(int port);
+    ~HTTPServer();
     void start();
 
 private:
@@ -37,7 +38,7 @@ private:
     struct epoll_event tmp_event;
     struct epoll_event *events;
 
-    tp::ThreadPool* thread_pool;
+    tp::ThreadPool *thread_pool;
 
     void initAddress();
     void createSocket();

@@ -1,4 +1,4 @@
-#include "server.h"
+#include "http_server.h"
 
 void unblockSocket(int fd) {
     int flags = fcntl(fd, F_GETFL, 0);
@@ -68,6 +68,11 @@ HTTPServer::HTTPServer(int port) : port(port) {
     createEpoll();
     
     thread_pool = new tp::ThreadPool();
+}
+
+HTTPServer::~HTTPServer() {
+    delete thread_pool;
+    delete []events;
 }
 
 void HTTPServer::initAddress() {
