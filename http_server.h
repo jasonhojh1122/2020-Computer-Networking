@@ -20,7 +20,7 @@
 #define BUFFER_SIZE 1024
 #define MAX_CONNECTION 1000
 
-extern const char* root_dir;
+extern char* root_dir;
 
 class HTTPServer {
 public:
