@@ -14,18 +14,6 @@ void unblockSocket(int fd) {
     return;
 }
 
-void sendAll(int conn_fd, std::string& message) {
-    char *ptr = message.data();
-    int len = message.length();
-    while (len > 0) {
-        int sent_len;
-        sent_len = send(conn_fd, ptr, len, 0);
-        ptr += sent_len;
-        len -= sent_len;
-    }
-    return;
-}
-
 void response_thread(int conn_fd) {    
     int read_len;
     char* buffer = new char[BUFFER_SIZE];
@@ -44,17 +32,13 @@ void response_thread(int conn_fd) {
     std::cout << request << '\n';
     #endif
 
-    http::HTTPRequest http_request = {};
     http::HTTPResponse http_response = {};
-    http::parseHttpRequest(request, http_request);
+    
+    Web web = {};
+    web.render(request, http_response);
 
-    http::getHTTPResponse(http_request.file_name, http_response);
-
-    std::string message;
-    http::getResponseHeader(http_response, message);
-
-    sendAll(conn_fd, message);
-    sendAll(conn_fd, http_response.file_data);
+    IO::sendAll(conn_fd, http_response.header);
+    IO::sendAll(conn_fd, http_response.file_data);
     close(conn_fd);
     delete []buffer;
 }

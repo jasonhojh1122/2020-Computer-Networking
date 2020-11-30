@@ -1,3 +1,5 @@
+#ifndef _THREAD_POOL_H
+#define _THREAD_POOL_H
 #include <thread>
 #include <mutex>
 #include <queue>
@@ -103,3 +105,5 @@ public:
 };
 
 }
+
+#endif

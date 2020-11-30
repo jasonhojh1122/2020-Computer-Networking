@@ -14,6 +14,7 @@
 #include <iostream>
 
 #include "http.h"
+#include "web_server.h"
 #include "thread_pool.h"
 
 #define MAX_QUEUE 10
