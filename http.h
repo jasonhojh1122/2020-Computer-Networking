@@ -6,6 +6,7 @@
 #include <sstream>
 #include <fstream>
 #include <exception>
+#include <map>
 
 #include "IO.h"
 
@@ -31,6 +32,7 @@ struct HTTPRequest {
     std::vector<std::string>    parsed_request;
     HTTPMethod                  http_method;
     std::string                 file_name;
+    std::map<std::string, std::string> post_value;
 };
 
 struct HTTPResponse {
@@ -41,6 +43,10 @@ struct HTTPResponse {
 };
 
 void parseHttpRequest(std::string& request, HTTPRequest& http_request);
+
+void parseHTTPMethod(HTTPRequest& http_request);
+
+void parsePostArg(HTTPRequest& http_request);
 
 void getResponseHeader(HTTPResponse& http_response);
 

@@ -14,8 +14,8 @@ public:
 
 private:
     static service_map service;
-    void serveFile(http::HTTPRequest& request, http::HTTPResponse& response);
-    static void login(http::HTTPRequest &request, http::HTTPResponse& response);
-    static void signup(http::HTTPRequest &request, http::HTTPResponse& response);
-    static void bulletin(http::HTTPRequest &request, http::HTTPResponse& response);
+    static void serveFile(http::HTTPRequest& request, http::HTTPResponse& response);
+    static void login(http::HTTPRequest& request, http::HTTPResponse& response);
+    static void signup(http::HTTPRequest& request, http::HTTPResponse& response);
+    static void bulletin(http::HTTPRequest& request, http::HTTPResponse& response);
 };

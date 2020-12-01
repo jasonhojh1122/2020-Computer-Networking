@@ -8,7 +8,12 @@ void http::parseHttpRequest(std::string& request, HTTPRequest& http_request) {
         http_request.parsed_request.push_back(tmp);
     }
 
+    
+}
+
+void http::parseHTTPMethod(HTTPRequest& http_request) {
     std::stringstream ss(http_request.parsed_request[0]);
+    std::string tmp;
 
     std::getline(ss, tmp, ' ');
 
@@ -20,6 +25,10 @@ void http::parseHttpRequest(std::string& request, HTTPRequest& http_request) {
         http_request.http_method = METHOD_UNDEFINED;
 
     std::getline(ss, http_request.file_name, ' ');
+}
+
+void http::parsePostArg(HTTPRequest& http_request) {
+    
 }
 
 void http::getResponseHeader(HTTPResponse& http_response) {

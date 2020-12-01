@@ -19,10 +19,30 @@ void Web::render(std::string& request, http::HTTPResponse& http_response) {
         (it->second)(http_request, http_response);
     }
     else {
-        serveFile(http_request, http_response);
+        Web::serveFile(http_request, http_response);
     }
 
     http::getResponseHeader(http_response);
+}
+
+void Web::login(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
+    if (http_request.http_method != http::METHOD_POST) {
+        http_request.file_name = ROOT_DIR + std::string("/index.html");
+        Web::serveFile(http_request, http_response);
+    }
+    else if (http_request.http_method == http::METHOD_POST) {
+
+    }
+}
+
+
+
+void Web::signup(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
+
+}
+
+void Web::bulletin(http::HTTPRequest& http_request, http::HTTPResponse& response) {
+
 }
 
 void Web::serveFile(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
@@ -57,16 +77,4 @@ void Web::serveFile(http::HTTPRequest& http_request, http::HTTPResponse& http_re
     }
     return;
     
-}
-
-void Web::login(http::HTTPRequest &http_request, http::HTTPResponse& http_response) {
-
-}
-
-void Web::signup(http::HTTPRequest &http_request, http::HTTPResponse& http_response) {
-
-}
-
-void Web::bulletin(http::HTTPRequest &http_request, http::HTTPResponse& response) {
-
 }
