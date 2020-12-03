@@ -1,11 +1,11 @@
 CC=g++
 CPPFLAGS=-Wall -std=c++17 -O2
 LDFLAGS=-pthread -pedantic
-DEVFLAGS=-DTHREADSAFE=1 -l sqlite3
-DFLAGS=-DVERBOSE
+LFLAGS= -lsqlite3
+DFLAGS=-DVERBOSE -DTHREADSAFE=1
 
 dev:
-	$(CC) $(CPPFLAGS) $(LDFLAGS) $(DFLAGS) $(DEVFLAGS) main.cpp http_server.cpp web_server.cpp http.cpp IO.cpp -o main
+	$(CC) $(CPPFLAGS) $(LDFLAGS) $(DFLAGS) main.cpp http_server.cpp web_server.cpp http.cpp IO.cpp -o main $(LFLAGS)
 
 stable:
 	$(CC) $(CPPFLAGS) $(LDFLAGS) $(DFLAGS) main.cpp http_server.cpp web_server.cpp http.cpp IO.cpp -o main

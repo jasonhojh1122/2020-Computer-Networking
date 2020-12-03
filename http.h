@@ -19,6 +19,8 @@ static std::string HTTP_ERROR_FOLDER = "/http_error";
 enum StatusCode {
     STATUS_OK,
     STATUS_FORBIDDEN,
+    STATUS_SEE_OTHER,
+    STATUS_FOUND,
     STATUS_NOT_FOUND
 };
 
@@ -33,22 +35,34 @@ struct HTTPRequest {
     HTTPMethod                  http_method;
     std::string                 file_name;
     std::map<std::string, std::string> post_value;
+    std::map<std::string, std::string> cookie;
 };
 
 struct HTTPResponse {
     StatusCode                  status_code;
     IO::FileType                file_type;
-    std::string                 header;
     std::string                 file_data;
+    std::string                 header;
+    std::string                 see_other_location;
+    std::map<std::string, std::string> cookie;
+    int                         cookie_expire_hour;
 };
 
 void parseHttpRequest(std::string& request, HTTPRequest& http_request);
 
-void parseHTTPMethod(HTTPRequest& http_request);
+void parseFirstRow(HTTPRequest& http_request);
 
 void parsePostArg(HTTPRequest& http_request);
 
+void parseCookie(HTTPRequest& http_request);
+
 void getResponseHeader(HTTPResponse& http_response);
+
+std::string intToHTTPDayName(int day);
+
+std::string intToHTTPMonthName(int month);
+
+std::string getHTTPDate(int UTC, int offset_hour);
 
 }
 #endif
