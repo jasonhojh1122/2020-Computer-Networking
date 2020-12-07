@@ -16,10 +16,19 @@ int main(int argc, char const *argv[]) {
     int port;
     ss >> port;
 
-    ROOT_DIR = new char[sizeof(argv[2])];
-    for (auto i = 0; i < sizeof(argv[2]); ++i) {
+    int count = 0; 
+    while(argv[2][++count]);
+
+    ROOT_DIR = new char[count+2];
+    for (auto i = 0; i < count; ++i) {
         ROOT_DIR[i] = argv[2][i];
     }
+    if (ROOT_DIR[count] == 0) {
+        ROOT_DIR[count] = '/';
+        ROOT_DIR[count+1] = 0;
+    }
+
+    std::cout << "Server Root: " << ROOT_DIR << '\n';
 
     HTTPServer httpServer = {port};
     httpServer.start();

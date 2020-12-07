@@ -14,7 +14,7 @@ extern char* ROOT_DIR;
 
 namespace http {
 
-static std::string HTTP_ERROR_FOLDER = "/http_error";
+static std::string HTTP_ERROR_FOLDER = "http_error/";
 
 enum StatusCode {
     STATUS_OK,
@@ -33,7 +33,7 @@ enum HTTPMethod {
 struct HTTPRequest {
     std::vector<std::string>    parsed_request;
     HTTPMethod                  http_method;
-    std::string                 file_name;
+    std::vector<std::string>    services;
     std::map<std::string, std::string> post_value;
     std::map<std::string, std::string> cookie;
 };
@@ -45,7 +45,6 @@ struct HTTPResponse {
     std::string                 header;
     std::string                 see_other_location;
     std::map<std::string, std::string> cookie;
-    int                         cookie_expire_hour;
 };
 
 void parseHttpRequest(std::string& request, HTTPRequest& http_request);

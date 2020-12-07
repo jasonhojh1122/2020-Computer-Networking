@@ -10,6 +10,7 @@ void http::parseHttpRequest(std::string& request, HTTPRequest& http_request) {
     parseCookie(http_request);
     if (http_request.http_method == METHOD_POST) 
         parsePostArg(http_request);
+
 }
 
 void http::parseFirstRow(HTTPRequest& http_request) {
@@ -25,7 +26,13 @@ void http::parseFirstRow(HTTPRequest& http_request) {
     else 
         http_request.http_method = METHOD_UNDEFINED;
 
-    std::getline(ss, http_request.file_name, ' ');
+    std::getline(ss, tmp, ' ');
+    std::stringstream services(tmp);
+    std::getline(services, tmp, '/');
+    while (std::getline(services, tmp, '/')) {
+        http_request.services.push_back(tmp);
+    }
+    return;
 }
 
 void http::parsePostArg(HTTPRequest& http_request) {
@@ -78,7 +85,7 @@ void http::getResponseHeader(HTTPResponse& http_response) {
         ss << "Location: " << http_response.see_other_location << "\r\n";
     }
 
-    std::string expire = getHTTPDate(8, http_response.cookie_expire_hour);
+    std::string expire = getHTTPDate(8, 0);
     auto it = http_response.cookie.begin();
     for (; it != http_response.cookie.end(); it++) {
         ss << "Set-Cookie: " << it->first << "=" << it->second << "; Expires=" << expire << " \r\n";
