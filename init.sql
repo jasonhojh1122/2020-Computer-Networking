@@ -2,7 +2,7 @@ CREATE TABLE user (
     id INTEGER PRIMARY KEY,
     account TEXT NOT NULL,
     password TEXT NOT NULL,
-    id_cookie TEXT NOT NULL
+    id_cookie INT NOT NULL
 );
 
 CREATE TABLE bulletin (

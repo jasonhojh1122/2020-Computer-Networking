@@ -38,7 +38,7 @@ private:
 
     void errorPage(std::string& error_message, http::HTTPResponse& http_response);
 
-    bool getCookieByAccount(std::string account, std::string& cookie);
+    bool getCookieByAccount(std::string account, int& cookie);
     bool getIDByAccount(std::string account, int& id);
     bool getIDByCookie(std::string& cookie, int& id);
     bool getAccountByID(int id, std::string& account);
