@@ -1,7 +1,7 @@
 CC=g++
 CPPFLAGS=-Wall -std=c++17
 LDFLAGS=-pthread -pedantic
-LFLAGS= -lsqlite3
+LFLAGS= -lsqlite3 -lcurl
 DFLAGS=-DVERBOSE -DSQLITE_THREADSAFE=2
 
 dev:

@@ -2,11 +2,44 @@
 
 void replaceString(std::string& original, std::string& oldString, std::string& newString) {
     auto pos = original.find(oldString);
-    original.replace(pos, oldString.length(), newString);
+    if (pos != std::string::npos)
+        original.replace(pos, oldString.length(), newString);
 }
 
-bool isDigits(const std::string& str) {
-    return std::all_of(str.begin(), str.end(), ::isdigit);
+void stringReplaceAll(std::string& origin, std::string toReplace, std::string newStr) {
+    auto pos = origin.find(toReplace);
+    while (pos != std::string::npos) {
+        origin.replace(pos, toReplace.length(), newStr);
+        pos = origin.find(toReplace);
+    }
+}
+
+void replacePlusToSpace(std::string& s) {
+    auto i = s.begin();
+    auto n = s.end();
+    for (; i != n; i++) 
+        if (*i == '+')
+            *i = ' ';
+}
+
+bool isDigits(std::string& s) {
+    std::string::size_type i = 0;
+    auto n = s.size();
+    for (; i < n; i++)
+        if (s[i] < '0' || s[i] > '9')
+            return false;
+    return true;
+}
+
+void url_escape(std::string encoded, std::string& decoded) {
+    CURL *curl = NULL;
+    curl = curl_easy_init();
+    int outLength;
+    char *decoded_c = curl_easy_unescape(curl, encoded.c_str(), encoded.length(), &outLength);
+    decoded.assign(decoded_c, outLength);
+    curl_free(decoded_c);
+    curl_easy_cleanup(curl);
+    return;
 }
 
 Web::Web() {
@@ -63,8 +96,11 @@ void Web::login(http::HTTPRequest& http_request, http::HTTPResponse& http_respon
 }
 
 void Web::login_get(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
+
     auto it = http_request.cookie.find("uuid");
-    if (it != http_request.cookie.end()) {
+
+    int uid;
+    if (it != http_request.cookie.end() && isDigits(it->second) && getIDByCookie(it->second, uid)) {
         http_response.status_code = http::STATUS_SEE_OTHER;
         http_response.see_other_location = "index.html";
         return;
@@ -108,7 +144,7 @@ void Web::login_post(http::HTTPRequest& http_request, http::HTTPResponse& http_r
             http_response.status_code = http::STATUS_SEE_OTHER;
             http_response.see_other_location = "index.html";
             
-            int cookie;
+            unsigned int cookie;
             if (updateCookieByAccount(account_it->second))
                 if (getCookieByAccount(account_it->second, cookie))
                     http_response.cookie.insert({"uuid", std::to_string(cookie)});
@@ -130,7 +166,8 @@ void Web::signup(http::HTTPRequest& http_request, http::HTTPResponse& http_respo
 
 void Web::signup_get(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
     auto it = http_request.cookie.find("uuid");
-    if (it != http_request.cookie.end()) {
+    int uid;
+    if (it != http_request.cookie.end() && isDigits(it->second) && getIDByCookie(it->second, uid)) {
         http_response.status_code = http::STATUS_SEE_OTHER;
         http_response.see_other_location = "index.html";
         return;
@@ -171,7 +208,7 @@ void Web::signup_post(http::HTTPRequest& http_request, http::HTTPResponse& http_
         http_response.status_code = http::STATUS_SEE_OTHER;
         http_response.see_other_location = "signup_success.html";
 
-        int cookie;
+        unsigned int cookie;
         if (getCookieByAccount(account_it->second, cookie))
             http_response.cookie.insert({"uuid", std::to_string(cookie)});
     }
@@ -189,9 +226,10 @@ void Web::bulletin(http::HTTPRequest& http_request, http::HTTPResponse& http_res
 }
 
 void Web::bulletin_get(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
-    int page = 0;
-    if (http_request.services.size() == 1)
+    int page;
+    if (http_request.services.size() == 1) {
         page = 1;
+    }
     else {
         if (isDigits(http_request.services[1])) {
             page = std::stoi(http_request.services[1]);
@@ -200,7 +238,8 @@ void Web::bulletin_get(http::HTTPRequest& http_request, http::HTTPResponse& http
             std::string file_name = http::HTTP_ERROR_FOLDER + "404.html";
             serveFile(file_name, http_response);
         }
-    }
+    }   
+
     std::string post_form;
     auto it = http_request.cookie.find("uuid");
     if (it != http_request.cookie.end()) {
@@ -222,7 +261,6 @@ void Web::bulletin_get(http::HTTPRequest& http_request, http::HTTPResponse& http
         errorPage(error_message, http_response);
         return;
     }
-
     std::string file_name = "bulletin.html";
     serveFile(file_name, http_response);
 
@@ -230,12 +268,11 @@ void Web::bulletin_get(http::HTTPRequest& http_request, http::HTTPResponse& http
     if (is_end) {
         if (page > 1)
             ss << "<a href='/bulletin/" << page-1 << "'>Prev</a><br>";
-        else
-            ss <<  "<a href='/bulletin/" << page << "'>Top</a><br>";
     }
     else {
-        if (page > 1) 
-            ss << "<a href='/bulletin/" << page-1 << "'>Prev</a><br>";
+        if (page > 1) {
+            ss << "<a href='/bulletin/" << page-1 << "'>Prev</a>";
+        }
         ss << "<a href='/bulletin/" << page+1 << "'>Next</a><br>";
     }
     
@@ -247,13 +284,14 @@ void Web::bulletin_get(http::HTTPRequest& http_request, http::HTTPResponse& http
     replaceString(http_response.file_data, toReplace, content);
     toReplace = "{Page_Button}";
     replaceString(http_response.file_data, toReplace, page_button);
+
 }
 
 bool Web::getBulletinContentHTML(std::string& content, int limit, int offset, bool& is_end) {
     sqlite3_stmt *stmt;
     std::stringstream ss;
     const char *sql = "SELECT b.message, u.account FROM bulletin as b, user as u "
-                      "WHERE b.user_id = u.id limit ? offset ?;";
+                      "WHERE b.user_id = u.id ORDER BY b.id DESC limit ? offset ?;";
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         #ifdef VERBOSE
         std::cerr << "getBulletinContentHTML prepare: " << sqlite3_errmsg(db) << std::endl;
@@ -305,8 +343,15 @@ void Web::bulletin_post(http::HTTPRequest& http_request, http::HTTPResponse& htt
         errorPage(error_message, http_response);
         return;
     }
-    std::cout << "user_id: " << user_id << '\n';
-    if (insertNewMsgToBulletin(msg_it->second, user_id)) {
+    
+    replacePlusToSpace(msg_it->second);
+    std::string newLineEncoded = "%0D%0A";
+    std::string newLineHTML = "<br>";
+    stringReplaceAll(msg_it->second, newLineEncoded, newLineHTML);
+    std::string msg;
+    url_escape(msg_it->second, msg);
+
+    if (insertNewMsgToBulletin(msg, user_id)) {
         http_response.status_code = http::STATUS_SEE_OTHER;
         http_response.see_other_location = "bulletin";
         return;
@@ -417,7 +462,7 @@ bool Web::insertNewUser(std::string& account, std::string& password) {
     return true;
 }
 
-bool Web::getCookieByAccount(std::string account, int& cookie) {
+bool Web::getCookieByAccount(std::string account, unsigned int& cookie) {
     sqlite3_stmt *stmt;
     const char *get_cookie = "SELECT id_cookie FROM user WHERE account = ?;";
     if (sqlite3_prepare_v2(db, get_cookie, -1, &stmt, NULL) != SQLITE_OK) {
@@ -474,14 +519,13 @@ bool Web::updateCookieByAccount(std::string account) {
     if (getIDByAccount(account, uid) == false)
         return false;
 
-    std::stringstream ss;
     time_t now;
     time(&now);
     now += 259200;
-    ss << uid << now;
 
-    int cookie;
-    ss >> cookie;
+    unsigned int cookie = now;
+    cookie <<= 1;
+    cookie += uid;
 
     sqlite3_stmt *stmt;
     const char *sql = "UPDATE user SET id_cookie = ? WHERE account = ?;";
@@ -494,7 +538,7 @@ bool Web::updateCookieByAccount(std::string account) {
     }
     
     int j = 1;
-    sqlite3_bind_int(stmt, j++, cookie);
+    sqlite3_bind_int64(stmt, j++, cookie);
     sqlite3_bind_text(stmt, j++, account.c_str(), account.length(), NULL);
 
     sqlite3_busy_timeout(db, db_timeout);
@@ -543,9 +587,8 @@ bool Web::getIDByCookie(std::string& cookie, int& id) {
         return false;
     }
 
-    int cookie_t = std::stoi(cookie);
-
-    sqlite3_bind_int(stmt, 1, cookie_t);
+    unsigned int cookie_t = std::stoll(cookie);
+    sqlite3_bind_int64(stmt, 1, cookie_t);
 
     sqlite3_busy_timeout(db, db_timeout);
     if (sqlite3_step(stmt) != SQLITE_ROW) {

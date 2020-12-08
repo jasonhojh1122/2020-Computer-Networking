@@ -61,7 +61,7 @@ void http::parseCookie(HTTPRequest& http_request) {
                 std::string value;
                 auto semi = cookie_pair.find(';');
                 if (semi == std::string::npos)
-                    value = cookie_pair.substr(equal+1, cookie_pair.length() - equal - 1);
+                    value = cookie_pair.substr(equal+1, cookie_pair.length() - equal - 2);
                 else
                     value = cookie_pair.substr(equal+1, semi - equal - 1);
                 http_request.cookie.insert({cookie, value});

@@ -1,19 +1,13 @@
-#include <functional>
 #include <iostream>
-#include <sstream>
 #include <string>
-#include <time.h>
+#include <curl/curl.h>
+#include <algorithm>
 
+bool isDigits(const std::string& str) {
+    return std::all_of(str.begin(), str.end(), ::isdigit);
+}
 
 int main(int argc, char const *argv[]) {
-    std::cout << argv[0] << std::endl << argv[1] << std::endl;
-
-    int count = 0; 
-    while(argv[1][++count]);
-
-    std::cout << count << std::endl;
-
-    for (int i = 0; i < count; ++i) {
-        std::cout << argv[1][i] << "END\n";
-    }
+    std::string a = "1234567890124564";
+    std::cout << isDigits(a);
 }
