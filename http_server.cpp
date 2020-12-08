@@ -14,7 +14,8 @@ void unblockSocket(int fd) {
     return;
 }
 
-void response_thread(int conn_fd) {    
+void response_thread(int conn_fd) {
+    
     int read_len;
     char* buffer = new char[BUFFER_SIZE];
     read_len = recv(conn_fd , buffer, BUFFER_SIZE, 0);

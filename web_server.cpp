@@ -252,10 +252,11 @@ void Web::bulletin_get(http::HTTPRequest& http_request, http::HTTPResponse& http
 bool Web::getBulletinContentHTML(std::string& content, int limit, int offset, bool& is_end) {
     sqlite3_stmt *stmt;
     std::stringstream ss;
-    const char *sql = "SELECT message, user_id FROM bulletin limit ? offset ? ;";
+    const char *sql = "SELECT b.message, u.account FROM bulletin as b, user as u "
+                      "WHERE b.user_id = u.id limit ? offset ?;";
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         #ifdef VERBOSE
-        std::cerr << sqlite3_errmsg(db);
+        std::cerr << "getBulletinContentHTML prepare: " << sqlite3_errmsg(db) << std::endl;
         #endif
         return false;
     }
@@ -267,13 +268,8 @@ bool Web::getBulletinContentHTML(std::string& content, int limit, int offset, bo
     int cnt = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         std::string msg = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
-        int user_id = sqlite3_column_int(stmt, 1);
-        std::string account;
-
-        std::cout << "msg: " << msg << ", id: " << user_id << '\n';
-
-        if (getAccountByID(user_id, account) == false)
-            return false;
+        std::string account = std::string(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1)));
+        
         ss <<   "<p>"
                 "User: " << account << "<br>"
            <<   "Message: <br>"
@@ -289,7 +285,64 @@ bool Web::getBulletinContentHTML(std::string& content, int limit, int offset, bo
 }
 
 void Web::bulletin_post(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
+    auto msg_it = http_request.post_value.find("message");
+    auto cookie_it = http_request.cookie.find("uuid");
+    
+    if (msg_it == http_request.post_value.end() ) {
+        std::string error_message = "Wrong arguments in post request";
+        errorPage(error_message, http_response);
+        return;
+    }
+    if (cookie_it == http_request.cookie.end()) {
+        std::string error_message = "Please login first";
+        errorPage(error_message, http_response);
+        return;
+    }
 
+    int user_id;
+    if (getIDByCookie(cookie_it->second, user_id) == false) {
+        std::string error_message = "Invalid cookie";
+        errorPage(error_message, http_response);
+        return;
+    }
+    std::cout << "user_id: " << user_id << '\n';
+    if (insertNewMsgToBulletin(msg_it->second, user_id)) {
+        http_response.status_code = http::STATUS_SEE_OTHER;
+        http_response.see_other_location = "bulletin";
+        return;
+    }
+    else {
+        std::string error_message = "Failed to interact with database, please try again later.";
+        errorPage(error_message, http_response);
+        return;
+    }
+
+}
+
+bool Web::insertNewMsgToBulletin(std::string& message, int user_id) {
+    sqlite3_stmt *stmt;
+    const char *insert_sql = "INSERT INTO bulletin (message, user_id) VALUES (?,?);";
+    if (sqlite3_prepare_v2(db, insert_sql, -1, &stmt, NULL) != SQLITE_OK) {
+        #ifdef VERBOSE
+        std::cerr << "[ERROR] insertNewBulletin: " << sqlite3_errmsg(db);
+        #endif
+        return false;
+    }
+    
+    sqlite3_bind_text(stmt, 1, message.c_str(), message.length(), NULL);
+    sqlite3_bind_int(stmt, 2, user_id);
+
+    sqlite3_busy_timeout(db, db_timeout);
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        #ifdef VERBOSE
+        std::cerr << "[ERROR] insertNewUser: " << sqlite3_errmsg(db) << std::endl;
+        #endif
+        sqlite3_finalize(stmt);
+        return false;
+    }
+    sqlite3_finalize(stmt);
+
+    return true;
 }
 
 void Web::errorPage(std::string& error_message, http::HTTPResponse& http_response) {
@@ -364,9 +417,9 @@ bool Web::insertNewUser(std::string& account, std::string& password) {
     return true;
 }
 
-bool Web::getCookieByAccount(std::string& account, std::string& cookie) {
+bool Web::getCookieByAccount(std::string account, std::string& cookie) {
     sqlite3_stmt *stmt;
-    const char *get_cookie = "SELECT id_cookie FROM user WHERE account = ? ;";
+    const char *get_cookie = "SELECT id_cookie FROM user WHERE account = ?;";
     if (sqlite3_prepare_v2(db, get_cookie, -1, &stmt, NULL) != SQLITE_OK) {
         #ifdef VERBOSE
         std::cerr << "[ERROR] getCookieByAccount: " << sqlite3_errmsg(db) << std::endl;
@@ -388,9 +441,76 @@ bool Web::getCookieByAccount(std::string& account, std::string& cookie) {
     return true;
 }
 
-bool Web::getIDByAccount(std::string& account, int& id) {
+bool Web::getAccountByID(int id, std::string& account) {
     sqlite3_stmt *stmt;
-    const char *sql = "SELECT id FROM user WHERE account = ? ;";
+    const char *sql = "SELECT account FROM user WHERE id = ?;";
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        #ifdef VERBOSE
+        std::cerr << "[ERROR] getAccountByID: " << sqlite3_errmsg(db) << std::endl;
+        #endif
+        return false;
+    }
+
+    sqlite3_bind_int(stmt, 1, id);
+
+    sqlite3_busy_timeout(db, db_timeout);
+    sqlite3_step(stmt);
+
+    if (sqlite3_step(stmt) != SQLITE_ROW) {
+        #ifdef VERBOSE
+        std::cerr << "[ERROR] getAccountByID: " << sqlite3_errmsg(db) << std::endl;
+        #endif
+        return false;
+    }
+        
+    account = std::string(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0)));
+
+    sqlite3_finalize(stmt);
+    return true;
+}
+
+bool Web::updateCookieByAccount(std::string account) {
+    int uid;
+    if (getIDByAccount(account, uid) == false)
+        return false;
+
+    std::cout << "UID: " << uid << std::endl;
+
+    std::stringstream ss;
+    time_t now;
+    time(&now);
+    now += 259200;
+    ss << uid << now;
+
+    sqlite3_stmt *stmt;
+    const char *sql = "UPDATE user SET id_cookie = ? WHERE account = ?;";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        #ifdef VERBOSE
+        std::cerr << "[ERROR] updateCookieByAccount: " << sqlite3_errmsg(db) << std::endl;
+        #endif
+        return false;
+    }
+    
+    int j = 1;
+    sqlite3_bind_text(stmt, j++, ss.str().c_str(), ss.str().length(), NULL);
+    sqlite3_bind_text(stmt, j++, account.c_str(), account.length(), NULL);
+
+    sqlite3_busy_timeout(db, db_timeout);
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        #ifdef VERBOSE
+        std::cerr << "[ERROR] updateCookieByAccount: " << sqlite3_errmsg(db) << std::endl;
+        #endif
+        return false;
+    }
+    
+    sqlite3_finalize(stmt);
+    return true;
+}
+
+bool Web::getIDByAccount(std::string account, int& id) {
+    sqlite3_stmt *stmt;
+    const char *sql = "SELECT id FROM user WHERE account = ?;";
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         #ifdef VERBOSE
         std::cerr << "[ERROR] getIDByAccount: " << sqlite3_errmsg(db) << std::endl;
@@ -412,67 +532,30 @@ bool Web::getIDByAccount(std::string& account, int& id) {
     return true;
 }
 
-bool Web::getAccountByID(int id, std::string& account) {
+bool Web::getIDByCookie(std::string& cookie, int& id) {
     sqlite3_stmt *stmt;
-    const char *sql = "SELECT account FROM user WHERE id = ? ;";
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+    std::string sql = "SELECT id FROM user WHERE id_cookie == ? ;";
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL) != SQLITE_OK) {
         #ifdef VERBOSE
-        std::cerr << "[ERROR] getAccountByID: " << sqlite3_errmsg(db) << std::endl;
+        std::cerr << "[ERROR] getIDByCookie prepare: " << sqlite3_errmsg(db) << std::endl;
         #endif
         return false;
     }
 
-    sqlite3_bind_int(stmt, 1, id);
+    if (sqlite3_bind_text(stmt, 1, cookie.c_str(), -1, NULL) != SQLITE_OK) {
+        std::cerr << "[ERROR] getIDByCookie bind: " << sqlite3_errmsg(db) << std::endl;
+    }
 
     sqlite3_busy_timeout(db, db_timeout);
     if (sqlite3_step(stmt) != SQLITE_ROW) {
         #ifdef VERBOSE
-        std::cerr << "[ERROR] getAccountByID: " << sqlite3_errmsg(db) << std::endl;
+        std::cerr << "[ERROR] getIDByCookie step: " << sqlite3_errmsg(db) << std::endl;
         #endif
         return false;
     }
-        
-    account = std::string(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0)));
 
-    sqlite3_finalize(stmt);
-    return true;
-}
+    id = sqlite3_column_int(stmt, 0);
 
-bool Web::updateCookieByAccount(std::string& account) {
-    int uid;
-    if (getIDByAccount(account, uid) == false)
-        return false;
-
-    std::cout << "UID: " << uid << std::endl;
-
-    std::stringstream ss;
-    time_t now;
-    time(&now);
-    now += 259200;
-    ss << uid << now;
-
-    sqlite3_stmt *stmt;
-    const char *sql = "UPDATE user SET id_cookie = ? WHERE account = ?";
-
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
-        #ifdef VERBOSE
-        std::cerr << "[ERROR] updateCookieByAccount: " << sqlite3_errmsg(db) << std::endl;
-        #endif
-        return false;
-    }
-    
-    int j = 1;
-    sqlite3_bind_text(stmt, j++, ss.str().c_str(), ss.str().length(), NULL);
-    sqlite3_bind_text(stmt, j++, account.c_str(), account.length(), NULL);
-
-    sqlite3_busy_timeout(db, db_timeout);
-    if (sqlite3_step(stmt) != SQLITE_DONE) {
-        #ifdef VERBOSE
-        std::cerr << "[ERROR] updateCookieByAccount: " << sqlite3_errmsg(db) << std::endl;
-        #endif
-        return false;
-    }
-    
     sqlite3_finalize(stmt);
     return true;
 }

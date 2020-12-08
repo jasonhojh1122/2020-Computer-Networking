@@ -17,7 +17,7 @@ private:
     std::string db_name = "./project.db";
     std::map<std::string, MFP> service;
     sqlite3 *db;
-    int db_timeout = 3000;
+    int db_timeout = 1000;
 
     void serveFile(std::string& file_name, http::HTTPResponse& http_response);
 
@@ -28,17 +28,19 @@ private:
     void signup(http::HTTPRequest& http_request, http::HTTPResponse& http_response);
     void signup_get(http::HTTPRequest& http_request, http::HTTPResponse& http_response);
     void signup_post(http::HTTPRequest& http_request, http::HTTPResponse& http_response);
+    bool insertNewUser(std::string& account, std::string& password);
 
     void bulletin(http::HTTPRequest& http_request, http::HTTPResponse& http_response);
     void bulletin_get(http::HTTPRequest& http_request, http::HTTPResponse& http_response);
     void bulletin_post(http::HTTPRequest& http_request, http::HTTPResponse& http_response);
     bool getBulletinContentHTML(std::string& content, int limit, int offset, bool& is_end);
+    bool insertNewMsgToBulletin(std::string& message, int user_id);
 
     void errorPage(std::string& error_message, http::HTTPResponse& http_response);
 
-    bool getCookieByAccount(std::string& account, std::string& cookie);
-    bool getIDByAccount(std::string& account, int& id);
+    bool getCookieByAccount(std::string account, std::string& cookie);
+    bool getIDByAccount(std::string account, int& id);
+    bool getIDByCookie(std::string& cookie, int& id);
     bool getAccountByID(int id, std::string& account);
-    bool insertNewUser(std::string& account, std::string& password);
-    bool updateCookieByAccount(std::string& account);
+    bool updateCookieByAccount(std::string account);
 };
