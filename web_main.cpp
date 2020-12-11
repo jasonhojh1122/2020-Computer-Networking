@@ -1,13 +1,14 @@
-#include "http_server.h"
 #include <sstream>
 #include <cstdlib>
+
+#include "tcp_server.h"
+#include "web_server.h"
 
 char* ROOT_DIR;
 
 int main(int argc, char const *argv[]) {
     if (argc != 3) {
         std::cerr << "Usage: " << argv[0] << " [port] [root dir]\n";
-        throw std::runtime_error("Argument error.");
         exit(EXIT_FAILURE);
     }
 
@@ -20,6 +21,7 @@ int main(int argc, char const *argv[]) {
     while(argv[2][++count]);
 
     ROOT_DIR = new char[count+2];
+    memset(ROOT_DIR, 0, count+2);
     for (auto i = 0; i < count; ++i) {
         ROOT_DIR[i] = argv[2][i];
     }
@@ -30,7 +32,7 @@ int main(int argc, char const *argv[]) {
 
     std::cout << "Server Root: " << ROOT_DIR << '\n';
 
-    HTTPServer httpServer = {port};
-    httpServer.start();
+    TCPServer tcp_server = {port, web::response_thread};
+    tcp_server.start();
     return 0;
 }

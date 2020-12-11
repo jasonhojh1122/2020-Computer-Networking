@@ -1,17 +1,38 @@
+
+#include <sys/socket.h>
+#include <sys/epoll.h>
+#include <unistd.h>
+#include <stdlib.h>
 #include <iostream>
 #include <map>
 #include <functional>
-#include <sqlite3.h>
 #include <time.h>
+#include <sqlite3.h>
 #include <curl/curl.h>
 
 #include "http.h"
 
-class Web {
-typedef void (Web::*MFP)(http::HTTPRequest &, http::HTTPResponse&);
+#define BUFFER_SIZE 1024
+
+namespace web {
+
+void replaceString(std::string& original, std::string& oldString, std::string& newString);
+
+void stringReplaceAll(std::string& origin, std::string toReplace, std::string newStr);
+
+void replacePlusToSpace(std::string& s);
+
+bool isDigits(std::string& s);
+
+void url_escape(std::string encoded, std::string& decoded);
+
+void response_thread(int conn_fd);
+
+class WebServer {
+typedef void (WebServer::*MFP)(http::HTTPRequest &, http::HTTPResponse&);
 public:
-    Web();
-    ~Web();
+    WebServer();
+    ~WebServer();
     void render(std::string& packet, http::HTTPResponse& response);
 
 private:
@@ -45,3 +66,5 @@ private:
     bool getAccountByID(int id, std::string& account);
     bool updateCookieByAccount(std::string account);
 };
+
+}

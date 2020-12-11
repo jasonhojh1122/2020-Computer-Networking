@@ -1,12 +1,12 @@
 #include "web_server.h"
 
-void replaceString(std::string& original, std::string& oldString, std::string& newString) {
+void web::replaceString(std::string& original, std::string& oldString, std::string& newString) {
     auto pos = original.find(oldString);
     if (pos != std::string::npos)
         original.replace(pos, oldString.length(), newString);
 }
 
-void stringReplaceAll(std::string& origin, std::string toReplace, std::string newStr) {
+void web::stringReplaceAll(std::string& origin, std::string toReplace, std::string newStr) {
     auto pos = origin.find(toReplace);
     while (pos != std::string::npos) {
         origin.replace(pos, toReplace.length(), newStr);
@@ -14,7 +14,7 @@ void stringReplaceAll(std::string& origin, std::string toReplace, std::string ne
     }
 }
 
-void replacePlusToSpace(std::string& s) {
+void web::replacePlusToSpace(std::string& s) {
     auto i = s.begin();
     auto n = s.end();
     for (; i != n; i++) 
@@ -22,7 +22,7 @@ void replacePlusToSpace(std::string& s) {
             *i = ' ';
 }
 
-bool isDigits(std::string& s) {
+bool web::isDigits(std::string& s) {
     std::string::size_type i = 0;
     auto n = s.size();
     for (; i < n; i++)
@@ -31,7 +31,7 @@ bool isDigits(std::string& s) {
     return true;
 }
 
-void url_escape(std::string encoded, std::string& decoded) {
+void web::url_escape(std::string encoded, std::string& decoded) {
     CURL *curl = NULL;
     curl = curl_easy_init();
     int outLength;
@@ -42,7 +42,37 @@ void url_escape(std::string encoded, std::string& decoded) {
     return;
 }
 
-Web::Web() {
+void web::response_thread(int conn_fd) {
+    
+    int read_len;
+    char* buffer = new char[BUFFER_SIZE];
+    read_len = recv(conn_fd , buffer, BUFFER_SIZE, 0);
+    if (read_len == 0) {
+        close(conn_fd);
+        return;
+    }
+
+    std::string request;
+    request.clear();
+    request.assign(buffer, read_len);
+
+    #ifdef VERBOSE
+    std::cout << "----------New Request----------\n";
+    std::cout << request << '\n';
+    #endif
+
+    http::HTTPResponse http_response = {};
+    
+    web::WebServer web_server = {};
+    web_server.render(request, http_response);
+
+    IO::sendAll(conn_fd, http_response.header);
+    IO::sendAll(conn_fd, http_response.file_data);
+    close(conn_fd);
+    delete []buffer;
+}
+
+web::WebServer::WebServer() {
     int err;
     err = sqlite3_open(db_name.c_str(), &db);
     if (err) {
@@ -52,16 +82,16 @@ Web::Web() {
         #endif
         exit(EXIT_FAILURE);
     }
-    service.insert({"login", &Web::login});
-    service.insert({"signup", &Web::signup});
-    service.insert({"bulletin", &Web::bulletin});
+    service.insert({"login", &WebServer::login});
+    service.insert({"signup", &WebServer::signup});
+    service.insert({"bulletin", &WebServer::bulletin});
 }
 
-Web::~Web() {
+web::WebServer::~WebServer() {
     sqlite3_close(db);
 }
 
-void Web::render(std::string& request, http::HTTPResponse& http_response) {
+void web::WebServer::render(std::string& request, http::HTTPResponse& http_response) {
     http::HTTPRequest http_request = {};
     http::parseHttpRequest(request, http_request);
 
@@ -77,7 +107,7 @@ void Web::render(std::string& request, http::HTTPResponse& http_response) {
             file_name += '/';
             file_name += *it;
         }
-        Web::serveFile(file_name, http_response);
+        web::WebServer::serveFile(file_name, http_response);
     }
 
     http::getResponseHeader(http_response);
@@ -88,14 +118,14 @@ void Web::render(std::string& request, http::HTTPResponse& http_response) {
     #endif
 }
 
-void Web::login(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
+void web::WebServer::login(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
     if (http_request.http_method == http::METHOD_GET) 
         login_get(http_request, http_response);
     else if (http_request.http_method == http::METHOD_POST)
         login_post(http_request, http_response);
 }
 
-void Web::login_get(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
+void web::WebServer::login_get(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
 
     auto it = http_request.cookie.find("uuid");
 
@@ -109,7 +139,7 @@ void Web::login_get(http::HTTPRequest& http_request, http::HTTPResponse& http_re
     serveFile(file_name, http_response);
 }
 
-void Web::login_post(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
+void web::WebServer::login_post(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
     auto account_it = http_request.post_value.find("account");
     auto password_it = http_request.post_value.find("password");
 
@@ -157,14 +187,14 @@ void Web::login_post(http::HTTPRequest& http_request, http::HTTPResponse& http_r
     }
 }
 
-void Web::signup(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
+void web::WebServer::signup(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
     if (http_request.http_method == http::METHOD_GET)
         signup_get(http_request, http_response);
     else if (http_request.http_method == http::METHOD_POST)
         signup_post(http_request, http_response);
 }
 
-void Web::signup_get(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
+void web::WebServer::signup_get(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
     auto it = http_request.cookie.find("uuid");
     int uid;
     if (it != http_request.cookie.end() && isDigits(it->second) && getIDByCookie(it->second, uid)) {
@@ -176,7 +206,7 @@ void Web::signup_get(http::HTTPRequest& http_request, http::HTTPResponse& http_r
     serveFile(file_name, http_response);
 }
 
-void Web::signup_post(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
+void web::WebServer::signup_post(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
     auto account_it = http_request.post_value.find("account");
     auto password_it = http_request.post_value.find("password");
 
@@ -218,14 +248,14 @@ void Web::signup_post(http::HTTPRequest& http_request, http::HTTPResponse& http_
     }
 }
 
-void Web::bulletin(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
+void web::WebServer::bulletin(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
     if (http_request.http_method == http::METHOD_GET)
         bulletin_get(http_request, http_response);
     else if (http_request.http_method == http::METHOD_POST)
         bulletin_post(http_request, http_response);
 }
 
-void Web::bulletin_get(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
+void web::WebServer::bulletin_get(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
     int page;
     if (http_request.services.size() == 1) {
         page = 1;
@@ -287,7 +317,7 @@ void Web::bulletin_get(http::HTTPRequest& http_request, http::HTTPResponse& http
 
 }
 
-bool Web::getBulletinContentHTML(std::string& content, int limit, int offset, bool& is_end) {
+bool web::WebServer::getBulletinContentHTML(std::string& content, int limit, int offset, bool& is_end) {
     sqlite3_stmt *stmt;
     std::stringstream ss;
     const char *sql = "SELECT b.message, u.account FROM bulletin as b, user as u "
@@ -322,7 +352,7 @@ bool Web::getBulletinContentHTML(std::string& content, int limit, int offset, bo
     return true;
 }
 
-void Web::bulletin_post(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
+void web::WebServer::bulletin_post(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
     auto msg_it = http_request.post_value.find("message");
     auto cookie_it = http_request.cookie.find("uuid");
     
@@ -364,7 +394,7 @@ void Web::bulletin_post(http::HTTPRequest& http_request, http::HTTPResponse& htt
 
 }
 
-bool Web::insertNewMsgToBulletin(std::string& message, int user_id) {
+bool web::WebServer::insertNewMsgToBulletin(std::string& message, int user_id) {
     sqlite3_stmt *stmt;
     const char *insert_sql = "INSERT INTO bulletin (message, user_id) VALUES (?,?);";
     if (sqlite3_prepare_v2(db, insert_sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -390,14 +420,14 @@ bool Web::insertNewMsgToBulletin(std::string& message, int user_id) {
     return true;
 }
 
-void Web::errorPage(std::string& error_message, http::HTTPResponse& http_response) {
+void web::WebServer::errorPage(std::string& error_message, http::HTTPResponse& http_response) {
     std::string err_page = "error.html";
     serveFile(err_page, http_response);
     std::string toReplace = "{ERROR_MESSAGE}";
     replaceString(http_response.file_data, toReplace, error_message);
 }
 
-void Web::serveFile(std::string& file_name, http::HTTPResponse& http_response) {
+void web::WebServer::serveFile(std::string& file_name, http::HTTPResponse& http_response) {
 
     std::string file_dir;
 
@@ -430,7 +460,7 @@ void Web::serveFile(std::string& file_name, http::HTTPResponse& http_response) {
     return;
 }
 
-bool Web::insertNewUser(std::string& account, std::string& password) {
+bool web::WebServer::insertNewUser(std::string& account, std::string& password) {
     sqlite3_stmt *stmt;
     const char *insert_sql = "INSERT INTO user (account, password, id_cookie) VALUES (?,?,?);";
     if (sqlite3_prepare_v2(db, insert_sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -462,7 +492,7 @@ bool Web::insertNewUser(std::string& account, std::string& password) {
     return true;
 }
 
-bool Web::getCookieByAccount(std::string account, unsigned int& cookie) {
+bool web::WebServer::getCookieByAccount(std::string account, unsigned int& cookie) {
     sqlite3_stmt *stmt;
     const char *get_cookie = "SELECT id_cookie FROM user WHERE account = ?;";
     if (sqlite3_prepare_v2(db, get_cookie, -1, &stmt, NULL) != SQLITE_OK) {
@@ -486,7 +516,7 @@ bool Web::getCookieByAccount(std::string account, unsigned int& cookie) {
     return true;
 }
 
-bool Web::getAccountByID(int id, std::string& account) {
+bool web::WebServer::getAccountByID(int id, std::string& account) {
     sqlite3_stmt *stmt;
     const char *sql = "SELECT account FROM user WHERE id = ?;";
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -514,7 +544,7 @@ bool Web::getAccountByID(int id, std::string& account) {
     return true;
 }
 
-bool Web::updateCookieByAccount(std::string account) {
+bool web::WebServer::updateCookieByAccount(std::string account) {
     int uid;
     if (getIDByAccount(account, uid) == false)
         return false;
@@ -553,7 +583,7 @@ bool Web::updateCookieByAccount(std::string account) {
     return true;
 }
 
-bool Web::getIDByAccount(std::string account, int& id) {
+bool web::WebServer::getIDByAccount(std::string account, int& id) {
     sqlite3_stmt *stmt;
     const char *sql = "SELECT id FROM user WHERE account = ?;";
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -577,7 +607,7 @@ bool Web::getIDByAccount(std::string account, int& id) {
     return true;
 }
 
-bool Web::getIDByCookie(std::string& cookie, int& id) {
+bool web::WebServer::getIDByCookie(std::string& cookie, int& id) {
     sqlite3_stmt *stmt;
     const char *sql = "SELECT id FROM user WHERE id_cookie = ? ;";
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
