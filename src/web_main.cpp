@@ -25,7 +25,7 @@ int main(int argc, char const *argv[]) {
     for (auto i = 0; i < count; ++i) {
         ROOT_DIR[i] = argv[2][i];
     }
-    if (ROOT_DIR[count] == 0) {
+    if (ROOT_DIR[count-1] != '/') {
         ROOT_DIR[count] = '/';
         ROOT_DIR[count+1] = 0;
     }
