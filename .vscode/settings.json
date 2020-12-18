@@ -51,6 +51,9 @@
         "mutex": "cpp",
         "thread": "cpp",
         "map": "cpp",
-        "list": "cpp"
+        "list": "cpp",
+        "complex": "cpp",
+        "cstring": "cpp",
+        "cinttypes": "cpp"
     }
 }

@@ -130,7 +130,6 @@ void TCPServer::start() {
                 thread_pool->submit(std::bind(thread_funct, conn_fd));
             }
         }
-        
     }
 }
 

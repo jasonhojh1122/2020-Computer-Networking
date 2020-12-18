@@ -1,10 +1,10 @@
-#include "webcam.h"
+#include "stream_client.h"
 
-Webcam::Webcam(const char *dev_name) {
+StreamClient::StreamClient(const char *url) {
     avdevice_register_all();
     avcodec_register_all();
     av_register_all();
-
+    /*
     AVInputFormat *pInputFormat = av_find_input_format("v4l2");
 
     pFormatContext = avformat_alloc_context();
@@ -12,9 +12,14 @@ Webcam::Webcam(const char *dev_name) {
         std::cerr << "Failed to allocate memory for Format Context\n";
         exit(EXIT_FAILURE);
     }
+    */
+    std::stringstream ss;
+    ss << url << "?listen=1" << "?listen_timeout=" << TIMEOUT << "?timeout=" << TIMEOUT * 1000;
+    std::string tmp = ss.str();
+    std::cout << tmp << std::endl;
 
-    if (avformat_open_input(&pFormatContext, dev_name, pInputFormat, NULL) != 0) {
-        std::cerr << "Failed to open Web Camera.\n";
+    if (avformat_open_input(&pFormatContext, tmp.c_str(), NULL, NULL) != 0) {
+        std::cerr << "Failed to open url.\n";
         exit(EXIT_FAILURE);
     }
     
@@ -93,7 +98,7 @@ Webcam::Webcam(const char *dev_name) {
     std::cout << "Resolution: " << pCodecParameters->width << " x " << pCodecParameters->height << '\n';
 }
 
-Webcam::~Webcam() {
+StreamClient::~StreamClient() {
     avformat_close_input(&pFormatContext);
     av_packet_free(&pPacket);
     av_frame_free(&pFrame);
@@ -103,19 +108,19 @@ Webcam::~Webcam() {
     sws_freeContext(pSwsContext);
 }
 
-AVPixelFormat Webcam::getPixelFormat() {
+AVPixelFormat StreamClient::getPixelFormat() {
     return pCodecContext->pix_fmt;
 }
 
-int Webcam::getHeight() {
+int StreamClient::getHeight() {
     return pCodecParameters->height;
 }
 
-int Webcam::getWidth() {
+int StreamClient::getWidth() {
     return pCodecContext->width;
 }
 
-void Webcam::run() {
+void StreamClient::run() {
     int a = 0;
     while (av_read_frame(pFormatContext, pPacket) >= 0) {
         if (pPacket->stream_index == video_stream_index) {
@@ -124,7 +129,7 @@ void Webcam::run() {
     }
 }
 
-void Webcam::decodePacket() {
+void StreamClient::decodePacket() {
     int ret;
     ret = avcodec_send_packet(pCodecContext, pPacket);
     if (ret < 0) {
@@ -156,6 +161,6 @@ void Webcam::decodePacket() {
 
         cv::Mat mat(pCodecContext->height, pCodecContext->width, CV_8UC3, pRGBFrame->data[0], pRGBFrame->linesize[0]);
         cv::imshow("frame", mat);
-        cv::waitKey(100);
+        cv::waitKey(5);
     }
 }

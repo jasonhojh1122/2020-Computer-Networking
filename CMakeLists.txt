@@ -51,7 +51,9 @@ target_compile_definitions(web_main PUBLIC -DSQLITE_THREADSAFE=2)
 
 
 set( test_srcs  ${src_dir}/test.cpp
-                ${src_dir}/webcam.cpp)
+                ${src_dir}/webcam.cpp
+                ${src_dir}/stream_server.cpp
+                ${src_dir}/stream_client.cpp)
 
 add_executable(test_main ${test_srcs})
 

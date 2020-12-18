@@ -1,6 +1,5 @@
-#ifndef _WEBCAM_H
-#define _WEBCAM_H
-#include <unistd.h>
+#ifndef _STREAM_CLIENT_H
+#define _STREAM_CLIENT_H
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -18,12 +17,13 @@ extern "C" {
 #include <opencv2/highgui.hpp>
 
 #include <iostream>
+#include <sstream>
 #include <exception>
 
-class Webcam {
+class StreamClient {
 public:
-    Webcam(const char *dev_name);
-    ~Webcam();
+    StreamClient(const char *url);
+    ~StreamClient();
 
     void run();
     AVPixelFormat   getPixelFormat();
@@ -44,6 +44,8 @@ private:
     uint8_t             *pRGBFrameBuf = NULL;
 
     int video_stream_index = -1;
+
+    const int TIMEOUT = 600000;
 
     void decodePacket();
 
