@@ -7,11 +7,13 @@ StreamServer::StreamServer(const char *dev_name, const char *url, const char *ou
     avcodec_register_all();
     avformat_network_init();
     av_register_all();
-
+    
     init_input(dev_name);
     std::cout << "input initialzied\n";
+
     init_output(out_format, url, fps);
     std::cout << "output initialzied\n";
+
     init_sws();
     std::cout << "sws initialzied\n";
 
@@ -25,10 +27,14 @@ StreamServer::StreamServer(const char *dev_name, const char *url, const char *ou
 }
 
 StreamServer::~StreamServer() {
-    avio_close(out_fmt_ctx->pb);
-    avio_close(in_fmt_ctx->pb);
-    avformat_free_context(in_fmt_ctx);
-    avformat_free_context(out_fmt_ctx);
+    if (out_fmt_ctx->pb)
+        avio_close(out_fmt_ctx->pb);
+    if (in_fmt_ctx->pb)
+        avio_close(in_fmt_ctx->pb);
+    if (in_fmt_ctx)
+        avformat_free_context(in_fmt_ctx);
+    if (out_fmt_ctx)
+        avformat_free_context(out_fmt_ctx);
     if (packet)
         av_packet_free(&packet);
     if (in_frame)
@@ -82,10 +88,7 @@ void StreamServer::init_input(const char *dev_name) {
         exit(EXIT_FAILURE);
     }
 
-    AVDictionary *codec_options = NULL;
-    av_dict_set(&codec_options, "preset", "superfast", 0);
-
-    if (avcodec_open2(in_codec_ctx, in_codec, &codec_options) < 0) {
+    if (avcodec_open2(in_codec_ctx, in_codec, NULL) < 0) {
         std::cerr << "Failed to open input codec\n";
         exit(EXIT_FAILURE);
     }
@@ -102,9 +105,11 @@ void StreamServer::init_output(const char *out_format, const char *url, int fps)
         std::cerr << "Failed to allocate momory for output Format Context\n";
         exit(EXIT_FAILURE);
     }
-    if (avio_open2(&out_fmt_ctx->pb, url, AVIO_FLAG_WRITE, NULL, NULL) != 0) {
-        std::cerr << "Failed to open io Context\n";
-        exit(EXIT_FAILURE);
+    int ret = -1;
+    while (ret != 0) {
+        ret = avio_open2(&out_fmt_ctx->pb, url, AVIO_FLAG_WRITE, NULL, NULL);
+        if (ret != 0)
+            std::cerr << "Failed to open io Context\n";
     }
 
     out_codec = avcodec_find_encoder(AV_CODEC_ID_H264);
@@ -137,7 +142,6 @@ void StreamServer::init_output(const char *out_format, const char *url, int fps)
     }
 
     AVDictionary *codec_options = NULL;
-    av_dict_set(&codec_options, "profile", "high", 0);
     av_dict_set(&codec_options, "preset", "superfast", 0);
     av_dict_set(&codec_options, "tune", "zerolatency", 0);
 
@@ -151,11 +155,13 @@ void StreamServer::init_output(const char *out_format, const char *url, int fps)
 
     if (avformat_write_header(out_fmt_ctx, NULL) != 0) {
         std::cerr << "Failed to write header.\n";
+        exit(EXIT_FAILURE);
     }
 
     out_frame = av_frame_alloc();
     if (!out_frame) {
         std::cerr << "Failed to allocate out frame.\n";
+        exit(EXIT_FAILURE);
     }
     out_frame->width = out_codec_ctx->width;
     out_frame->height = out_codec_ctx->height;
@@ -241,10 +247,9 @@ void StreamServer::run() {
             std::cerr << "Failed to receive packet\n";
             exit(EXIT_FAILURE);
         }
-        std::cout << pts << '\n';
         packet->pts = av_rescale_q(packet->pts, out_codec_ctx->time_base, out_stream->time_base);
         packet->dts = av_rescale_q(packet->dts, out_codec_ctx->time_base, out_stream->time_base);
-        // av_write_frame(out_fmt_ctx, packet);
+
         av_interleaved_write_frame(out_fmt_ctx, packet);
         av_packet_unref(packet);
         av_init_packet(packet);

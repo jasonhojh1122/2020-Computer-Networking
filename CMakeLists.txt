@@ -50,18 +50,16 @@ target_compile_definitions(web_main PUBLIC -DSQLITE_THREADSAFE=2)
 
 
 
-set( test_srcs  ${src_dir}/test.cpp
-                ${src_dir}/webcam.cpp
-                ${src_dir}/stream_server.cpp
-                ${src_dir}/stream_client.cpp)
+set( stream_client_src  ${src_dir}/stream_client.cpp
+                        ${src_dir}/stream_client_main.cpp)
 
-add_executable(test_main ${test_srcs})
+add_executable(stream_client ${stream_client_src})
 
 find_package( OpenCV 4.5 REQUIRED )
 
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
-target_link_libraries( test_main ${OpenCV_LIBS} )
+target_link_libraries( stream_client ${OpenCV_LIBS} )
 
 pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
     libavdevice
@@ -74,5 +72,14 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
 )
 
 include_directories(${LIBAV_INCLUDE_DIRS})
-target_link_libraries(test_main PkgConfig::LIBAV)
+target_link_libraries(stream_client PkgConfig::LIBAV)
 
+
+set( stream_server_src  ${src_dir}/stream_server.cpp
+                        ${src_dir}/stream_server_main.cpp)
+
+add_executable(stream_server ${stream_server_src})
+
+target_link_libraries( stream_server ${OpenCV_LIBS} )
+
+target_link_libraries( stream_server PkgConfig::LIBAV )
