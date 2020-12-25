@@ -56,10 +56,10 @@ void web::response_thread(int conn_fd) {
     request.clear();
     request.assign(buffer, read_len);
 
-    #ifdef VERBOSE
+    
     std::cout << "----------New Request----------\n";
     std::cout << request << '\n';
-    #endif
+    
 
     http::HTTPResponse http_response = {};
     
@@ -217,7 +217,7 @@ void web::WebServer::signup_post(http::HTTPRequest& http_request, http::HTTPResp
         return;
     }
 
-    const char *sql = "SELECT id FROM user WHERE account == ? ;";
+    const char *sql = "SELECT id FROM user WHERE account = ? ;";
     sqlite3_stmt *stmt;
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         std::string file_name = http::HTTP_ERROR_FOLDER + std::string("500.html");
@@ -464,9 +464,9 @@ bool web::WebServer::insertNewUser(std::string& account, std::string& password) 
     sqlite3_stmt *stmt;
     const char *insert_sql = "INSERT INTO user (account, password, id_cookie) VALUES (?,?,?);";
     if (sqlite3_prepare_v2(db, insert_sql, -1, &stmt, NULL) != SQLITE_OK) {
-        #ifdef VERBOSE
-        std::cerr << "[ERROR] insertNewUser: " << sqlite3_errmsg(db);
-        #endif
+        
+        std::cerr << "[ERROR] insertNewUser: " << sqlite3_errmsg(db) << std::endl;
+        
         return false;
     }
 

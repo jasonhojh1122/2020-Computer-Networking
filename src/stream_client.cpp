@@ -3,6 +3,7 @@
 StreamClient::StreamClient(const char *url) {
     avdevice_register_all();
     avcodec_register_all();
+    avformat_network_init();
     av_register_all();
 
     std::stringstream ss;
