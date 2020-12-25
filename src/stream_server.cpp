@@ -9,21 +9,19 @@ StreamServer::StreamServer(const char *dev_name, const char *url, const char *ou
     av_register_all();
     
     init_input(dev_name);
-    std::cout << "input initialzied\n";
 
     init_output(out_format, url, fps);
-    std::cout << "output initialzied\n";
 
     init_sws();
-    std::cout << "sws initialzied\n";
 
     packet = av_packet_alloc();
     if (!packet) {
-        std::cerr << "Failed to allocate memory for Packet\n";
+        std::cerr << "[Server] Failed to allocate memory for Packet\n";
         exit(EXIT_FAILURE);
     }
 
     signal(SIGINT, StreamServer::sig_handler);
+    std::cout << "[Server] Server initialized\n";
 }
 
 StreamServer::~StreamServer() {
@@ -55,12 +53,12 @@ void StreamServer::init_input(const char *dev_name) {
     AVInputFormat *pInputFormat = av_find_input_format("v4l2");
 
     if (avformat_open_input(&in_fmt_ctx, dev_name, pInputFormat, NULL) != 0) {
-        std::cerr << "Failed to open Web Camera.\n";
+        std::cerr << "[Server] Failed to open Web Camera.\n";
         exit(EXIT_FAILURE);
     }
     
     if (avformat_find_stream_info(in_fmt_ctx, NULL) < 0 ) {
-        std::cerr << "Failed to get string info\n";
+        std::cerr << "[Server] Failed to get string info\n";
         exit(EXIT_FAILURE);
     }
 
@@ -72,56 +70,56 @@ void StreamServer::init_input(const char *dev_name) {
     }
 
     if (video_stream_index == -1) {
-        std::cerr << "Failed to find video stream input\n";
+        std::cerr << "[Server] Failed to find video stream input\n";
         exit(EXIT_FAILURE);
     }
 
     in_codec = avcodec_find_decoder(in_fmt_ctx->streams[video_stream_index]->codecpar->codec_id);
     in_codec_ctx = avcodec_alloc_context3(in_codec);
     if (!in_codec_ctx) {
-        std::cerr << "Failed to allocate memory for input Codec Context\n";
+        std::cerr << "[Server] Failed to allocate memory for input Codec Context\n";
         exit(EXIT_FAILURE);
     }
     
     if (avcodec_parameters_to_context(in_codec_ctx, in_fmt_ctx->streams[video_stream_index]->codecpar) < 0) {
-        std::cerr << "Failed to copy input codec parameters to codec context\n";
+        std::cerr << "[Server] Failed to copy input codec parameters to codec context\n";
         exit(EXIT_FAILURE);
     }
 
     if (avcodec_open2(in_codec_ctx, in_codec, NULL) < 0) {
-        std::cerr << "Failed to open input codec\n";
+        std::cerr << "[Server] Failed to open input codec\n";
         exit(EXIT_FAILURE);
     }
 
     in_frame = av_frame_alloc();
     if (!in_frame) {
-        std::cerr << "Failed to allocate memory for input Frame\n";
+        std::cerr << "[Server] Failed to allocate memory for input Frame\n";
         exit(EXIT_FAILURE);
     }
 }
 
 void StreamServer::init_output(const char *out_format, const char *url, int fps) {
     if (avformat_alloc_output_context2(&out_fmt_ctx, NULL, out_format, NULL) != 0) {
-        std::cerr << "Failed to allocate momory for output Format Context\n";
+        std::cerr << "[Server] Failed to allocate momory for output Format Context\n";
         exit(EXIT_FAILURE);
     }
     int ret = -1;
     while (ret != 0) {
         ret = avio_open2(&out_fmt_ctx->pb, url, AVIO_FLAG_WRITE, NULL, NULL);
         if (ret != 0)
-            std::cerr << "Failed to open io Context\n";
+            std::cerr << "[Server] Failed to open io Context\n";
     }
 
     out_codec = avcodec_find_encoder(AV_CODEC_ID_H264);
     out_codec_ctx = avcodec_alloc_context3(out_codec);
     if (!out_codec_ctx) {
-        std::cerr << "Failed to allocate output codec context\n";
+        std::cerr << "[Server] Failed to allocate output codec context\n";
         exit(EXIT_FAILURE);
     }
 
     out_stream = avformat_new_stream(out_fmt_ctx, out_codec);
     if (!out_stream) {
-        std::cerr << "Failed to get output stream\n";
+        std::cerr << "[Server] Failed to get output stream\n";
         exit(EXIT_FAILURE);
     }
 
@@ -137,7 +135,7 @@ void StreamServer::init_output(const char *out_format, const char *url, int fps)
     out_codec_ctx->max_b_frames = 1;
 
     if (avcodec_parameters_from_context(out_stream->codecpar, out_codec_ctx) != 0) {
-        std::cerr << "Failed to copy parameters to output codec stream.\n";
+        std::cerr << "[Server] Failed to copy parameters to output codec stream.\n";
         exit(EXIT_FAILURE);
     }
 
@@ -146,7 +144,7 @@ void StreamServer::init_output(const char *out_format, const char *url, int fps)
     av_dict_set(&codec_options, "tune", "zerolatency", 0);
 
     if (avcodec_open2(out_codec_ctx, out_codec, &codec_options) != 0) {
-        std::cerr << "Failed to open encoder.\n";
+        std::cerr << "[Server] Failed to open encoder.\n";
         exit(EXIT_FAILURE);
     }
 
@@ -154,13 +152,13 @@ void StreamServer::init_output(const char *out_format, const char *url, int fps)
     out_stream->codecpar->extradata_size = out_codec_ctx->extradata_size;
 
     if (avformat_write_header(out_fmt_ctx, NULL) != 0) {
-        std::cerr << "Failed to write header.\n";
+        std::cerr << "[Server] Failed to write header.\n";
         exit(EXIT_FAILURE);
     }
 
     out_frame = av_frame_alloc();
     if (!out_frame) {
-        std::cerr << "Failed to allocate out frame.\n";
+        std::cerr << "[Server] Failed to allocate out frame.\n";
         exit(EXIT_FAILURE);
     }
     out_frame->width = out_codec_ctx->width;
@@ -192,7 +190,7 @@ void StreamServer::init_sws() {
                                 out_codec_ctx->height,
                                 1)
         < 0) {
-        std::cerr << "Failed to fill in output frame buffer\n";
+        std::cerr << "[Server] Failed to fill in output frame buffer\n";
         exit(EXIT_FAILURE);
     }
 }
@@ -206,13 +204,13 @@ void StreamServer::run() {
         int ret;
         ret = avcodec_send_packet(in_codec_ctx, packet);
         if (ret != 0) {
-            std::cerr << "Failed to send packet to decoder.\n";
+            std::cerr << "[Server] Failed to send packet to decoder.\n";
             exit(EXIT_FAILURE);
         }
 
         ret = avcodec_receive_frame(in_codec_ctx, in_frame);
         if (ret != 0) {
-            std::cerr << "Faield to receive frame\n";
+            std::cerr << "[Server] Failed to receive frame\n";
             exit(EXIT_FAILURE);
         }
 
@@ -227,7 +225,7 @@ void StreamServer::run() {
                         out_frame->data,
                         out_frame->linesize);
         if (ret <= 0) {
-            std::cerr << "Failed to convert pixel format\n";
+            std::cerr << "[Server] Failed to convert pixel format\n";
             exit(EXIT_FAILURE);
         }
 
@@ -235,7 +233,7 @@ void StreamServer::run() {
         
         ret = avcodec_send_frame(out_codec_ctx, out_frame);
         if (ret != 0) {
-            std::cerr << "Failed to send frame.\n";
+            std::cerr << "[Server] Failed to send frame.\n";
             exit(EXIT_FAILURE);
         }
 
@@ -244,7 +242,7 @@ void StreamServer::run() {
             continue;
         if (ret != 0) {
             std::cerr << ret << '\n';
-            std::cerr << "Failed to receive packet\n";
+            std::cerr << "[Server] Failed to receive packet\n";
             exit(EXIT_FAILURE);
         }
         packet->pts = av_rescale_q(packet->pts, out_codec_ctx->time_base, out_stream->time_base);

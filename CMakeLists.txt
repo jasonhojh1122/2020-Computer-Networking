@@ -49,7 +49,34 @@ endif()
 target_compile_definitions(web_main PUBLIC -DSQLITE_THREADSAFE=2)
 
 
+set( stream_src ${src_dir}/stream_client.cpp
+                ${src_dir}/stream_server.cpp
+                ${src_dir}/stream_main.cpp)
 
+add_executable(stream_main ${stream_src})
+
+find_package( OpenCV 4.5 REQUIRED )
+
+include_directories( ${OpenCV_INCLUDE_DIRS} )
+
+target_link_libraries( stream_main ${OpenCV_LIBS} )
+
+pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
+    libavdevice
+    libavfilter
+    libavformat
+    libavcodec
+    libswresample
+    libswscale
+    libavutil
+)
+
+include_directories(${LIBAV_INCLUDE_DIRS})
+target_link_libraries(stream_main PkgConfig::LIBAV)
+
+
+
+#[[
 set( stream_client_src  ${src_dir}/stream_client.cpp
                         ${src_dir}/stream_client_main.cpp)
 
@@ -83,3 +110,4 @@ add_executable(stream_server ${stream_server_src})
 target_link_libraries( stream_server ${OpenCV_LIBS} )
 
 target_link_libraries( stream_server PkgConfig::LIBAV )
+]]

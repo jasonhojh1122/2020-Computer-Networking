@@ -4,27 +4,23 @@ StreamClient::StreamClient(const char *url) {
     avdevice_register_all();
     avcodec_register_all();
     av_register_all();
-    /*
-    AVInputFormat *pInputFormat = av_find_input_format("v4l2");
 
-    pFormatContext = avformat_alloc_context();
-    if (!pFormatContext) {
-        std::cerr << "Failed to allocate memory for Format Context\n";
-        exit(EXIT_FAILURE);
-    }
-    */
     std::stringstream ss;
     ss << url << "?listen=1" << "?listen_timeout=" << TIMEOUT << "?timeout=" << TIMEOUT * 1000;
-    std::string tmp = ss.str();
-    std::cout << tmp << std::endl;
+    
+    std::cout << "[Client] Waiting for server output.\n";
 
-    if (avformat_open_input(&pFormatContext, tmp.c_str(), NULL, NULL) != 0) {
-        std::cerr << "Failed to open url.\n";
+    std::cout << "[Client] " << ss.str() << std::endl;
+
+    if (avformat_open_input(&pFormatContext, ss.str().c_str(), NULL, NULL) != 0) {
+        std::cerr << "[Client] Failed to open url.\n";
         exit(EXIT_FAILURE);
     }
+
+    std::cout << "[Client] Receive video stream.\n";
     
     if (avformat_find_stream_info(pFormatContext, NULL) < 0 ) {
-        std::cerr << "Failed to get string info\n";
+        std::cerr << "[Client] Failed to get string info\n";
         exit(EXIT_FAILURE);
     }
 
@@ -36,37 +32,37 @@ StreamClient::StreamClient(const char *url) {
     }
 
     if (video_stream_index == -1) {
-        std::cerr << "Failed to find video stream input\n";
+        std::cerr << "[Client] Failed to find video stream input\n";
         exit(EXIT_FAILURE);
     }
 
     pCodec = avcodec_find_decoder(pCodecParameters->codec_id);
     pCodecContext = avcodec_alloc_context3(pCodec);
     if (!pCodecContext) {
-        std::cerr << "Failed to allocate memory for Codec Context\n";
+        std::cerr << "[Client] Failed to allocate memory for Codec Context\n";
         exit(EXIT_FAILURE);
     }
     
     if (avcodec_parameters_to_context(pCodecContext, pCodecParameters) < 0) {
-        std::cerr << "Failed to copy codec parameters to codec context\n";
+        std::cerr << "[Client] Failed to copy codec parameters to codec context\n";
         exit(EXIT_FAILURE);
     }
 
     if (avcodec_open2(pCodecContext, pCodec, NULL) < 0) {
-        std::cerr << "Failed to open codec\n";
+        std::cerr << "[Client] Failed to open codec\n";
         exit(EXIT_FAILURE);
     }
 
     pFrame = av_frame_alloc();
     pRGBFrame = av_frame_alloc();
     if (!pFrame || !pRGBFrame) {
-        std::cerr << "Failed to allocate memory for Frame\n";
+        std::cerr << "[Client] Failed to allocate memory for Frame\n";
         exit(EXIT_FAILURE);
     }
 
     pPacket = av_packet_alloc();
     if (!pPacket) {
-        std::cerr << "Failed to allocate memory for Packet\n";
+        std::cerr << "[Client] Failed to allocate memory for Packet\n";
         exit(EXIT_FAILURE);
     }
 
@@ -90,12 +86,12 @@ StreamClient::StreamClient(const char *url) {
                                 pCodecContext->height,
                                 1)
         < 0) {
-        std::cerr << "Failed to fill in RGBFrame buffer\n";
+        std::cerr << "[Client] Failed to fill in RGBFrame buffer\n";
         exit(EXIT_FAILURE);
     }
 
-    std::cout << "Codec: " << pCodec->name << '\n';
-    std::cout << "Resolution: " << pCodecParameters->width << " x " << pCodecParameters->height << '\n';
+    std::cout << "[Client] Codec: " << pCodec->name << '\n';
+    std::cout << "[Client] Resolution: " << pCodecParameters->width << " x " << pCodecParameters->height << '\n';
 }
 
 StreamClient::~StreamClient() {
@@ -133,7 +129,7 @@ void StreamClient::decodePacket() {
     int ret;
     ret = avcodec_send_packet(pCodecContext, pPacket);
     if (ret < 0) {
-        std::cerr << "Failed to send Packet for decoding\n";
+        std::cerr << "[Client] Failed to send Packet for decoding\n";
         exit(EXIT_FAILURE);
     }
 
@@ -142,7 +138,7 @@ void StreamClient::decodePacket() {
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
             return;
         else if (ret < 0) {
-            std::cerr << "Failed to decode Packet\n";
+            std::cerr << "[Client] Failed to decode Packet\n";
             exit(EXIT_FAILURE);
         }
         
@@ -155,12 +151,12 @@ void StreamClient::decodePacket() {
                     pRGBFrame->linesize);
 
         if (a <= 0) {
-            std::cerr << "Failed to convert pixel format\n";
+            std::cerr << "[Client] Failed to convert pixel format\n";
             exit(EXIT_FAILURE);
         }
 
         cv::Mat mat(pCodecContext->height, pCodecContext->width, CV_8UC3, pRGBFrame->data[0], pRGBFrame->linesize[0]);
-        cv::imshow("frame", mat);
+        cv::imshow("streaming", mat);
         cv::waitKey(5);
     }
 }
