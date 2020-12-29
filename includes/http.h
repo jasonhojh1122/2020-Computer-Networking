@@ -44,6 +44,7 @@ struct HTTPResponse {
     std::string                 file_data;
     std::string                 header;
     std::string                 see_other_location;
+    bool                        logout = false;
     std::map<std::string, std::string> cookie;
 };
 

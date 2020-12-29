@@ -47,6 +47,8 @@ private:
     void login_get(http::HTTPRequest& http_request, http::HTTPResponse& http_response);
     void login_post(http::HTTPRequest& http_request, http::HTTPResponse& http_response);
 
+    void logout(http::HTTPRequest& http_request, http::HTTPResponse& http_response);
+
     void signup(http::HTTPRequest& http_request, http::HTTPResponse& http_response);
     void signup_get(http::HTTPRequest& http_request, http::HTTPResponse& http_response);
     void signup_post(http::HTTPRequest& http_request, http::HTTPResponse& http_response);

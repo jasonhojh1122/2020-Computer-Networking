@@ -66,6 +66,9 @@ void web::response_thread(int conn_fd) {
     web::WebServer web_server = {};
     web_server.render(request, http_response);
 
+    std::cout << "Response\n";
+    std::cout << http_response.header << '\n';
+
     IO::sendAll(conn_fd, http_response.header);
     IO::sendAll(conn_fd, http_response.file_data);
     close(conn_fd);
@@ -83,6 +86,7 @@ web::WebServer::WebServer() {
         exit(EXIT_FAILURE);
     }
     service.insert({"login", &WebServer::login});
+    service.insert({"logout", &WebServer::logout});
     service.insert({"signup", &WebServer::signup});
     service.insert({"bulletin", &WebServer::bulletin});
 }
@@ -94,6 +98,14 @@ web::WebServer::~WebServer() {
 void web::WebServer::render(std::string& request, http::HTTPResponse& http_response) {
     http::HTTPRequest http_request = {};
     http::parseHttpRequest(request, http_request);
+
+    if (http_request.services.size() == 0) {
+        std::string file_name = http::HTTP_ERROR_FOLDER + "404.html";
+        serveFile(file_name, http_response);
+        http_response.status_code = http::STATUS_NOT_FOUND;
+        http::getResponseHeader(http_response);
+        return;
+    }
 
     auto it = service.find(http_request.services[0]);
     if (it != service.end()) {
@@ -107,7 +119,7 @@ void web::WebServer::render(std::string& request, http::HTTPResponse& http_respo
             file_name += '/';
             file_name += *it;
         }
-        web::WebServer::serveFile(file_name, http_response);
+        serveFile(file_name, http_response);
     }
 
     http::getResponseHeader(http_response);
@@ -185,6 +197,14 @@ void web::WebServer::login_post(http::HTTPRequest& http_request, http::HTTPRespo
             return;
         }
     }
+}
+
+void web::WebServer::logout(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {
+    http_response.logout = true;
+    http_response.status_code = http::STATUS_SEE_OTHER;
+    http_response.cookie.insert({"uuid", "0"});
+    http_response.see_other_location = "index.html";
+    return;
 }
 
 void web::WebServer::signup(http::HTTPRequest& http_request, http::HTTPResponse& http_response) {

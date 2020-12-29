@@ -86,6 +86,13 @@ void http::getResponseHeader(HTTPResponse& http_response) {
     }
 
     std::string expire = getHTTPDate(8, 0);
+    if (http_response.logout) {
+        expire = "Mon, 01 Jan 1999, 01:00:00 GMT";
+    }
+    else {
+        expire = getHTTPDate(0, 8);
+    }
+    
     auto it = http_response.cookie.begin();
     for (; it != http_response.cookie.end(); it++) {
         ss << "Set-Cookie: " << it->first << "=" << it->second << "; Expires=" << expire << " \r\n";
