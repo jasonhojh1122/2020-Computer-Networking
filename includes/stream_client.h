@@ -45,7 +45,11 @@ private:
 
     const int TIMEOUT = 600000;
 
+    static bool end;
+
     void decodePacket();
+
+    static void sig_handler(int signal);
 
 };
 

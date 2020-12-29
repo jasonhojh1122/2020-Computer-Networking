@@ -1,5 +1,7 @@
 #include "stream_client.h"
 
+bool StreamClient::end = false;
+
 StreamClient::StreamClient(const char *url) {
     avdevice_register_all();
     avcodec_register_all();
@@ -119,7 +121,7 @@ int StreamClient::getWidth() {
 
 void StreamClient::run() {
     int a = 0;
-    while (av_read_frame(pFormatContext, pPacket) >= 0) {
+    while (av_read_frame(pFormatContext, pPacket) >= 0 && ~end) {
         if (pPacket->stream_index == video_stream_index) {
             decodePacket();
         }
@@ -157,7 +159,11 @@ void StreamClient::decodePacket() {
         }
 
         cv::Mat mat(pCodecContext->height, pCodecContext->width, CV_8UC3, pRGBFrame->data[0], pRGBFrame->linesize[0]);
-        cv::imshow("streaming", mat);
+        cv::imshow("Target Screen", mat);
         cv::waitKey(5);
     }
+}
+
+void StreamClient::sig_handler(int signal) {
+    end = true;
 }

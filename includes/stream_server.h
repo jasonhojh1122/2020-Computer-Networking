@@ -1,5 +1,5 @@
-#ifndef _StreamServer_H
-#define _StreamServer_H
+#ifndef _STREAM_SERVER_H
+#define _STREAM_SERVER_H
 #include <unistd.h>
 #include <signal.h>
 
@@ -38,10 +38,16 @@ private:
     AVFrame             *out_frame = NULL;
     AVStream            *out_stream = NULL;
     
+    AVFrame             *display_frame = NULL;
+
     AVPacket            *packet = NULL;
 
-    struct SwsContext   *pSwsContext = NULL;
-    uint8_t             *pRGBFrameBuf = NULL;
+    AVPixelFormat       display_fmt = AV_PIX_FMT_BGR24;
+
+    struct SwsContext   *sws_in_2_rgb = NULL;
+    uint8_t             *rgb_frame_buf = NULL;
+    struct SwsContext   *sws_rgb_2_out = NULL;
+    uint8_t             *out_frame_buf = NULL;
 
     int video_stream_index = -1;
 
@@ -49,7 +55,12 @@ private:
 
     void init_input(const char *dev_name);
     void init_output(const char *out_format, const char *url, int fps);
+    void init_display();
     void init_sws();
+
+    bool decode_input_frame();
+    void cv2_display_frame();
+    bool encode_output_frame(int64_t pts);
 
     static void sig_handler(int signal);
 };

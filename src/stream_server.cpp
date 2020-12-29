@@ -10,6 +10,8 @@ StreamServer::StreamServer(const char *dev_name, const char *url, const char *ou
     
     init_input(dev_name);
 
+    init_display();
+
     init_output(out_format, url, fps);
 
     init_sws();
@@ -43,10 +45,14 @@ StreamServer::~StreamServer() {
         avcodec_free_context(&in_codec_ctx);
     if (out_codec_ctx)
         avcodec_free_context(&out_codec_ctx);
-    if (pRGBFrameBuf)
-        av_free(pRGBFrameBuf);
-    if (pSwsContext)
-        sws_freeContext(pSwsContext);
+    if (rgb_frame_buf)
+        av_free(rgb_frame_buf);
+    if (sws_in_2_rgb)
+        sws_freeContext(sws_in_2_rgb);
+    if (out_frame_buf)
+        av_free(rgb_frame_buf);
+    if (sws_rgb_2_out)
+        sws_freeContext(sws_rgb_2_out);
 }
 
 void StreamServer::init_input(const char *dev_name) {
@@ -96,6 +102,17 @@ void StreamServer::init_input(const char *dev_name) {
         std::cerr << "[Server] Failed to allocate memory for input Frame\n";
         exit(EXIT_FAILURE);
     }
+}
+
+void StreamServer::init_display() {
+    display_frame = av_frame_alloc();
+    if (!display_frame) {
+        std::cerr << "[Server] Failed to allocate out frame.\n";
+        exit(EXIT_FAILURE);
+    }
+    display_frame->width = in_codec_ctx->width;
+    display_frame->height = in_codec_ctx->height;
+    display_frame->format = display_fmt;
 }
 
 void StreamServer::init_output(const char *out_format, const char *url, int fps) {
@@ -167,24 +184,51 @@ void StreamServer::init_output(const char *out_format, const char *url, int fps)
 }
 
 void StreamServer::init_sws() {
-    pSwsContext = sws_getContext(in_codec_ctx->width,
+    sws_in_2_rgb = sws_getContext(in_codec_ctx->width,
                                     in_codec_ctx->height,
                                     in_codec_ctx->pix_fmt,
                                     out_codec_ctx->width,
                                     out_codec_ctx->height,
-                                    out_codec_ctx->pix_fmt,
-                                    SWS_BICUBIC,
+                                    display_fmt,
+                                    SWS_BILINEAR,
                                     NULL, NULL, NULL);
 
-    int picture_size = av_image_get_buffer_size(out_codec_ctx->pix_fmt,
+    int picture_size = av_image_get_buffer_size(display_fmt,
                                                 out_codec_ctx->width,
                                                 out_codec_ctx->height,
-                                                32);
+                                                1);
 
-    pRGBFrameBuf = (uint8_t*)av_malloc(picture_size);
+    rgb_frame_buf = (uint8_t*)av_malloc(picture_size);
+    if (av_image_fill_arrays(display_frame->data,
+                                display_frame->linesize,
+                                rgb_frame_buf,
+                                display_fmt,
+                                out_codec_ctx->width,
+                                out_codec_ctx->height,
+                                1)
+        < 0) {
+        std::cerr << "[Server] Failed to fill in display frame buffer\n";
+        exit(EXIT_FAILURE);
+    }
+
+    sws_rgb_2_out = sws_getContext(in_codec_ctx->width,
+                                    in_codec_ctx->height,
+                                    display_fmt,
+                                    out_codec_ctx->width,
+                                    out_codec_ctx->height,
+                                    out_codec_ctx->pix_fmt,
+                                    SWS_BILINEAR,
+                                    NULL, NULL, NULL);
+
+    picture_size = av_image_get_buffer_size(out_codec_ctx->pix_fmt,
+                                            out_codec_ctx->width,
+                                            out_codec_ctx->height,
+                                            32);
+
+    out_frame_buf = (uint8_t*)av_malloc(picture_size);
     if (av_image_fill_arrays(out_frame->data,
                                 out_frame->linesize,
-                                pRGBFrameBuf,
+                                out_frame_buf,
                                 out_codec_ctx->pix_fmt,
                                 out_codec_ctx->width,
                                 out_codec_ctx->height,
@@ -195,60 +239,96 @@ void StreamServer::init_sws() {
     }
 }
 
-void StreamServer::run() {
-    int64_t pts = 0;
-    while (av_read_frame(in_fmt_ctx, packet) >= 0 && !end) {
-        if (packet->stream_index != video_stream_index)
-            continue;
+bool StreamServer::decode_input_frame() {
+    if (packet->stream_index != video_stream_index)
+        return false;
         
-        int ret;
-        ret = avcodec_send_packet(in_codec_ctx, packet);
-        if (ret != 0) {
-            std::cerr << "[Server] Failed to send packet to decoder.\n";
-            exit(EXIT_FAILURE);
-        }
+    int ret;
+    ret = avcodec_send_packet(in_codec_ctx, packet);
+    if (ret != 0) {
+        std::cerr << "[Server] Failed to send packet to decoder.\n";
+        exit(EXIT_FAILURE);
+    }
 
-        ret = avcodec_receive_frame(in_codec_ctx, in_frame);
-        if (ret != 0) {
-            std::cerr << "[Server] Failed to receive frame\n";
-            exit(EXIT_FAILURE);
-        }
+    ret = avcodec_receive_frame(in_codec_ctx, in_frame);
+    if (ret != 0) {
+        std::cerr << "[Server] Failed to receive frame\n";
+        exit(EXIT_FAILURE);
+    }
 
-        av_packet_unref(packet);
-        av_init_packet(packet);
+    av_packet_unref(packet);
+    av_init_packet(packet);
+    return true;
+}
 
-        ret = sws_scale(pSwsContext,
+void StreamServer::cv2_display_frame() {
+    int ret = sws_scale(sws_in_2_rgb,
                         (const uint8_t *const *)in_frame->data,
                         in_frame->linesize,
                         0,
                         in_codec_ctx->height,
+                        display_frame->data,
+                        display_frame->linesize);
+    if (ret <= 0) {
+        std::cerr << "[Server] Failed to convert pixel format from input\n";
+        exit(EXIT_FAILURE);
+    }
+
+    cv::Mat mat(display_frame->height, display_frame->width, CV_8UC3, display_frame->data[0], display_frame->linesize[0]);
+    cv::imshow("Your Screen", mat);
+    cv::waitKey(5);
+}
+
+bool StreamServer::encode_output_frame(int64_t pts) {
+    int ret = sws_scale(sws_rgb_2_out,
+                        (const uint8_t *const *)display_frame->data,
+                        display_frame->linesize,
+                        0,
+                        in_codec_ctx->height,
                         out_frame->data,
                         out_frame->linesize);
-        if (ret <= 0) {
-            std::cerr << "[Server] Failed to convert pixel format\n";
-            exit(EXIT_FAILURE);
-        }
+    if (ret <= 0) {
+        std::cerr << "[Server] Failed to convert pixel format from display\n";
+        exit(EXIT_FAILURE);
+    }
 
-        out_frame->pts = pts++;
+    out_frame->pts = pts;
+    
+    ret = avcodec_send_frame(out_codec_ctx, out_frame);
+    if (ret != 0) {
+        std::cerr << "[Server] Failed to send frame.\n";
+        exit(EXIT_FAILURE);
+    }
+
+    ret = avcodec_receive_packet(out_codec_ctx, packet);
+    if (ret == AVERROR(EAGAIN))
+        return false;
+    if (ret != 0) {
+        std::cerr << ret << '\n';
+        std::cerr << "[Server] Failed to receive packet\n";
+        exit(EXIT_FAILURE);
+    }
+    packet->pts = av_rescale_q(packet->pts, out_codec_ctx->time_base, out_stream->time_base);
+    packet->dts = av_rescale_q(packet->dts, out_codec_ctx->time_base, out_stream->time_base);
+    return true;
+}
+
+void StreamServer::run() {
+    int64_t pts = 0;
+    while (av_read_frame(in_fmt_ctx, packet) >= 0 && !end) {
+        if (decode_input_frame() == false)
+            continue;        
+
+        // display
+        cv2_display_frame();
         
-        ret = avcodec_send_frame(out_codec_ctx, out_frame);
-        if (ret != 0) {
-            std::cerr << "[Server] Failed to send frame.\n";
-            exit(EXIT_FAILURE);
-        }
-
-        ret = avcodec_receive_packet(out_codec_ctx, packet);
-        if (ret == AVERROR(EAGAIN))
+        // encode
+        if (encode_output_frame(pts++) == false)
             continue;
-        if (ret != 0) {
-            std::cerr << ret << '\n';
-            std::cerr << "[Server] Failed to receive packet\n";
-            exit(EXIT_FAILURE);
-        }
-        packet->pts = av_rescale_q(packet->pts, out_codec_ctx->time_base, out_stream->time_base);
-        packet->dts = av_rescale_q(packet->dts, out_codec_ctx->time_base, out_stream->time_base);
 
+        // send frame
         av_interleaved_write_frame(out_fmt_ctx, packet);
+
         av_packet_unref(packet);
         av_init_packet(packet);
     }
