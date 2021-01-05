@@ -1,4 +1,4 @@
-#include "http_server.h"
+#include "tcp_server.h"
 
 void unblockSocket(int fd) {
     int flags = fcntl(fd, F_GETFL, 0);
@@ -14,52 +14,7 @@ void unblockSocket(int fd) {
     return;
 }
 
-void sendAll(int conn_fd, std::string& message) {
-    char *ptr = message.data();
-    int len = message.length();
-    while (len > 0) {
-        int sent_len;
-        sent_len = send(conn_fd, ptr, len, 0);
-        ptr += sent_len;
-        len -= sent_len;
-    }
-    return;
-}
-
-void response_thread(int conn_fd) {    
-    int read_len;
-    char* buffer = new char[BUFFER_SIZE];
-    read_len = recv(conn_fd , buffer, BUFFER_SIZE, 0);
-    if (read_len == 0) {
-        close(conn_fd);
-        return;
-    }
-
-    std::string request;
-    request.clear();
-    request.assign(buffer, read_len);
-
-    #ifdef VERBOSE
-    std::cout << "----------New Request----------\n";
-    std::cout << request << '\n';
-    #endif
-
-    http::HTTPRequest http_request = {};
-    http::HTTPResponse http_response = {};
-    http::parseHttpRequest(request, http_request);
-
-    http::getHTTPResponse(http_request.file_name, http_response);
-
-    std::string message;
-    http::getResponseHeader(http_response, message);
-
-    sendAll(conn_fd, message);
-    sendAll(conn_fd, http_response.file_data);
-    close(conn_fd);
-    delete []buffer;
-}
-
-HTTPServer::HTTPServer(int port) : port(port) {
+TCPServer::TCPServer(int port, ThreadFunct thread_funct) : port(port), thread_funct(thread_funct) {
 
     initAddress();
     createSocket();
@@ -70,12 +25,12 @@ HTTPServer::HTTPServer(int port) : port(port) {
     thread_pool = new tp::ThreadPool();
 }
 
-HTTPServer::~HTTPServer() {
+TCPServer::~TCPServer() {
     delete thread_pool;
     delete []events;
 }
 
-void HTTPServer::initAddress() {
+void TCPServer::initAddress() {
     server_address.sin_family = AF_INET;
     server_address.sin_addr.s_addr = INADDR_ANY;
     server_address.sin_port = htons(port);
@@ -83,7 +38,7 @@ void HTTPServer::initAddress() {
     return;
 }
 
-void HTTPServer::createSocket() {
+void TCPServer::createSocket() {
     if ((hello_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         std::runtime_error("Failed to create socket");
         exit(EXIT_FAILURE);
@@ -91,7 +46,7 @@ void HTTPServer::createSocket() {
     return;
 }
 
-void HTTPServer::bindSocket() {
+void TCPServer::bindSocket() {
     if (bind(hello_fd, (struct sockaddr *)&server_address, addr_len) < 0) {
         std::runtime_error("Failed to bind to socket");
         exit(EXIT_FAILURE);
@@ -99,7 +54,7 @@ void HTTPServer::bindSocket() {
     return;
 }
 
-void HTTPServer::listenSocket() {
+void TCPServer::listenSocket() {
     if (listen(hello_fd, max_queue) < 0) {
         std::runtime_error("Failed to listen to socket");
         exit(EXIT_FAILURE);
@@ -107,7 +62,7 @@ void HTTPServer::listenSocket() {
     return;
 }
 
-void HTTPServer::createEpoll() {
+void TCPServer::createEpoll() {
     epoll_fd = epoll_create1(0);
     if (epoll_fd == -1) {
         std::runtime_error("Failed to create epoll.");
@@ -115,14 +70,14 @@ void HTTPServer::createEpoll() {
     }
 }
 
-void HTTPServer::addToEpoll(int fd, int op, epoll_event* event) {
+void TCPServer::addToEpoll(int fd, int op, epoll_event* event) {
     if (epoll_ctl(epoll_fd, op, fd, event) == -1) {
         std::runtime_error("Failed to add to epoll");
         exit(EXIT_FAILURE);
     }
 }
 
-void HTTPServer::acceptConnection() {
+void TCPServer::acceptConnection() {
 
     int conn_fd;
     struct sockaddr_in client_address;
@@ -147,7 +102,7 @@ void HTTPServer::acceptConnection() {
     }
 }
 
-void HTTPServer::start() {
+void TCPServer::start() {
 
     tmp_event.data.fd = hello_fd;
     tmp_event.events = EPOLLIN | EPOLLET;
@@ -172,10 +127,9 @@ void HTTPServer::start() {
             }
             else {
                 int conn_fd = events[i].data.fd;
-                thread_pool->submit(std::bind(&response_thread, conn_fd));
+                thread_pool->submit(std::bind(thread_funct, conn_fd));
             }
         }
-        
     }
 }
 
