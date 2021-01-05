@@ -30,7 +30,7 @@ if (CURL_FOUND)
     target_link_libraries( web_main ${CURL_LIBRARY} )
 endif ()
 
-find_package(PkgConfig QUIET)
+find_package(PkgConfig REQUIRED)
 pkg_check_modules(SQLITE3 sqlite3)
 
 if (SQLITE3_FOUND)
@@ -40,7 +40,7 @@ endif ()
 
 find_package(Threads REQUIRED)
 if(THREADS_HAVE_PTHREAD_ARG)
-    target_compile_options(web_main PUBLIC "-pthread")
+    target_compile_options(web_main PUBLIC "-lpthread")
 endif()
 if(CMAKE_THREAD_LIBS_INIT)
     target_link_libraries(web_main "${CMAKE_THREAD_LIBS_INIT}")
@@ -55,13 +55,13 @@ set( stream_src ${src_dir}/stream_client.cpp
 
 add_executable(stream_main ${stream_src})
 
-find_package( OpenCV REQUIRED )
+find_package( OpenCV )
 
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
 target_link_libraries( stream_main ${OpenCV_LIBS} )
 
-pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
+pkg_check_modules(LIBAV IMPORTED_TARGET
     libavdevice
     libavformat
     libavcodec
